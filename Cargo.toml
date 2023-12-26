@@ -17,6 +17,8 @@ tokio = { version = "1", features = ["sync"] }
 gethostname = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+toml = "0.8"
+platform-dirs = "0.3.0"
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git", optional = true }
 
 [target.'cfg(target_os="linux")'.dependencies]

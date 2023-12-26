@@ -6,6 +6,7 @@ use clipboard_master::{CallbackResult, ClipboardHandler, Master};
 use env_logger::Env;
 use gethostname::gethostname;
 use log::{debug, warn};
+use platform_dirs::AppDirs;
 use rumqttc::{AsyncClient, EventLoop, MqttOptions, QoS};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -13,23 +14,25 @@ use tray_item::{IconSource, TrayItem};
 
 use std::{
     io,
+    path::PathBuf,
     sync::{atomic::AtomicBool, Arc},
 };
 
-#[derive(Debug, Clone, Parser)]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
 struct Args {
-    #[clap(short = 'a', long)]
     pub mqtt_server_addr: String,
-    #[clap(short = 'p', long)]
     pub mqtt_server_port: u16,
-    #[clap(short = 't', long, default_value = "clipboard")]
-    pub mqtt_topic: String,
-    #[clap(short = 'u', long)]
+    pub mqtt_topic: Option<String>,
     pub mqtt_username: Option<String>,
-    #[clap(short = 'w', long)]
     pub mqtt_password: Option<String>,
-    #[clap(short = 'c', long)]
     pub mqtt_client_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Parser)]
+struct Config {
+    #[arg(long = "config")]
+    config_path: Option<std::path::PathBuf>,
 }
 
 struct Handler<T: ClipboardProvider> {
@@ -117,9 +120,16 @@ async fn clipboard_subscriber(
     Ok(())
 }
 
+fn get_config_file() -> PathBuf {
+    let app_dirs = AppDirs::new(Some(env!("CARGO_PKG_NAME")), false).unwrap();
+    app_dirs.config_dir.join("config.toml")
+}
+
 async fn svc_main() -> anyhow::Result<()> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
-    let args = Args::parse();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    let config_path = Config::parse().config_path.unwrap_or(get_config_file());
+    let config = std::fs::read_to_string(config_path)?;
+    let args = toml::from_str::<Args>(&config)?;
 
     let clip_monitor_flag = Arc::new(AtomicBool::new(true));
 
@@ -141,13 +151,12 @@ async fn svc_main() -> anyhow::Result<()> {
         );
     }
 
+    let topic = args.mqtt_topic.unwrap_or("clipboard".to_string());
     let (sender, receiver) = tokio::sync::mpsc::channel(10);
     let (client, eventloop) = AsyncClient::new(options, 10);
-    client
-        .subscribe(args.mqtt_topic.clone(), QoS::AtLeastOnce)
-        .await?;
+    client.subscribe(topic.clone(), QoS::AtLeastOnce).await?;
 
-    let publisher_task = clipboard_publisher(client, receiver, args.mqtt_topic);
+    let publisher_task = clipboard_publisher(client, receiver, topic);
     let subscriber_task = clipboard_subscriber(eventloop, clip_monitor_flag.clone());
 
     let mut provider: ClipboardContext = ClipboardProvider::new().map_err(|e| {

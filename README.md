@@ -9,23 +9,27 @@
 
 ## Run
 
-Setup MQTT broker and run `./target/release/clip-sync` with the following arguments:
+1. Setup MQTT broker
 
-    * `-a` or `--mqtt-server-addr`: MQTT broker address
-    * `-p` or `--mqtt-server-port`: MQTT broker port
-    * `-u` or `--mqtt-username`: MQTT username, can be omitted if no authentication is required
-    * `-w` or `--mqtt-password`: MQTT password, can be omitted if no authentication is required
-    * `-t` or `--mqtt-topic`: MQTT topic, defaults to `clipboard`
-    * `-c` or `--mqtt-client-id`: Client id, defaults to the hostname
+2. Create config file `config.toml` at the default config path (`~/.config/clip-sync/config.toml` on Linux, `%APPDATA%\clip-sync\config.toml` on Windows, `~/Library/Application Support/clip-sync/config.toml` on macOS) with the following settings:
+
+    * `mqtt-server-addr`: MQTT broker address
+    * `mqtt-server-port`: MQTT broker port
+    * `mqtt-username`: MQTT username, can be omitted if no authentication is required
+    * `mqtt-password`: MQTT password, can be omitted if no authentication is required
+    * `mqtt-topic`: MQTT topic, defaults to `clipboard`
+    * `mqtt-client-id`: Client id, defaults to the hostname
+
+3. Run `clip-sync`.
 
 ## Usage
 
 To automatically start the program on system startup:
 
 * Windows:
-    Create a shortcut to `clip-sync.exe` with required arguments in the startup folder.
+    Create a shortcut to `clip-sync.exe` in the startup folder.
 * macOS:
-    Update the `com.0d0a.clipsync.plist` file with the required arguments and copy it to `~/Library/LaunchAgents/`.
+    Update the `com.0d0a.clipsync.plist` with the correct path and copy it to `~/Library/LaunchAgents/`.
     Then run `launchctl load ~/Library/LaunchAgents/com.0d0a.clipsync.plist`.
 * Linux:
-    Update the `clip-sync.desktop` file with the required arguments and copy it to `~/.config/autostart/`.
+    Update the `clip-sync.desktop` file with the correct path and copy it to `~/.config/autostart/`.

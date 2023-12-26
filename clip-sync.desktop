@@ -1,13 +1,5 @@
 [Desktop Entry]
-
 Type=Application
 Name=ClipSync
-
-# The path to the folder in which the executable is run
-Path=/usr/local
-
-# The executable of the application, possibly with arguments.
-Exec=/usr/local/bin/clip-sync -a 192.168.2.50 -p 11883
-
-# Describes whether this application needs to be run in a terminal or not
+Exec=/usr/local/bin/clip-sync
 Terminal=false

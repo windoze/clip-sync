@@ -1,0 +1,12 @@
+mqtt-server-addr = "mqtt-server.example.com"
+mqtt-server-port = 1883
+# Can be omitted if no authentication is required
+# mqtt-username = "some-mqtt-username"
+# Can be omitted if no authentication is required
+# mqtt-password = "some-mqtt-password"
+# Default is "clipboard"
+# mqtt-topic = "clipboard"
+# Default is the hostname of the machine
+# mqtt-client-id = "some-mqtt-client-id"
+
+
