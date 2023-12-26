@@ -1,0 +1,23 @@
+[package]
+name = "clip-sync"
+authors = ["Chen Xu <windoze@0d0a.com>"]
+version = "0.1.0"
+edition = "2021"
+description = "A clipboard sync tool"
+
+[dependencies]
+anyhow = "1"
+log = "0.4"
+env_logger = "0.10"
+clipboard = "0.5"
+clipboard-master = "3"
+clap = { version = "4", features = ["derive"] }
+rumqttc = "0.23"
+tokio = { version = "1", features = ["sync"] }
+gethostname = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
+
+[build-dependencies]
+embed-resource = "2.4"

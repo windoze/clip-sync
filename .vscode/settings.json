@@ -1,0 +1,14 @@
+{
+  "editor.formatOnSave": true,
+  "[toml]": {
+    "editor.formatOnSave": false
+  },
+  "[markdown]": {
+    "editor.formatOnSave": false
+  },
+  "cSpell.words": [
+    "gethostname",
+    "mqtt",
+    "rumqttc"
+  ]
+}
