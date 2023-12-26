@@ -95,6 +95,7 @@ struct ClipboardData {
 
 async fn clipboard_subscriber(
     mut eventloop: EventLoop,
+    client_id: String,
     clip_monitor_flag: Arc<AtomicBool>,
 ) -> anyhow::Result<()> {
     let mut provider: ClipboardContext = ClipboardProvider::new().map_err(|e| {
@@ -106,6 +107,10 @@ async fn clipboard_subscriber(
         if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(p)) = notification {
             if let Ok(content) = serde_json::from_slice::<ClipboardData>(&p.payload) {
                 debug!("Clipboard data = {:?}", content);
+                if content.source == client_id {
+                    debug!("Skipping clipboard update from self");
+                    continue;
+                }
                 clip_monitor_flag.store(false, std::sync::atomic::Ordering::Relaxed);
                 // HACK: Texts on Windows and macOS have different line endings, setting clipboard does auto-conversion and this caused the clipboard to be updated endlessly on both sides.
                 provider
@@ -135,7 +140,7 @@ async fn svc_main() -> anyhow::Result<()> {
     let sender_id = args.mqtt_client_id.unwrap_or(
         gethostname()
             .into_string()
-            .unwrap_or("<unknown>".to_string()),
+            .unwrap_or(random_string::generate(12, "abcdefghijklmnopqrstuvwxyz")),
     );
     let mut options = MqttOptions::new(
         sender_id.clone(),
@@ -143,10 +148,10 @@ async fn svc_main() -> anyhow::Result<()> {
         args.mqtt_server_port,
     );
 
-    if args.mqtt_username.is_some() {
+    if args.mqtt_username.is_some() || args.mqtt_password.is_some() {
         options.set_credentials(
-            args.mqtt_username.unwrap(),
-            args.mqtt_password.unwrap_or("".to_string()),
+            args.mqtt_username.unwrap_or_default(),
+            args.mqtt_password.unwrap_or_default(),
         );
     }
 
@@ -156,7 +161,8 @@ async fn svc_main() -> anyhow::Result<()> {
     client.subscribe(topic.clone(), QoS::AtLeastOnce).await?;
 
     let publisher_task = clipboard_publisher(client, receiver, topic);
-    let subscriber_task = clipboard_subscriber(eventloop, clip_monitor_flag.clone());
+    let subscriber_task =
+        clipboard_subscriber(eventloop, sender_id.clone(), clip_monitor_flag.clone());
 
     let mut provider: ClipboardContext = ClipboardProvider::new().map_err(|e| {
         anyhow::anyhow!("Failed to initialize clipboard provider: {}", e.to_string())
