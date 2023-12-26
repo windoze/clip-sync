@@ -181,101 +181,70 @@ async fn svc_main() -> anyhow::Result<()> {
 }
 
 #[cfg(target_os = "macos")]
-fn main() {
-    let icon = IconSource::Data {
+fn get_app_icon() -> IconSource {
+    IconSource::Data {
         width: 0,
         height: 0,
         data: include_bytes!("../icons/app-icon.png").to_vec(),
-    };
-    let mut tray = TrayItem::new("ClipSync", icon).unwrap();
-
-    let inner = tray.inner_mut();
-    inner.add_quit_item("Quit");
-
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        runtime.block_on(svc_main()).expect("Failed to run service");
-    });
-
-    inner.display();
+    }
 }
 
 #[cfg(target_os = "windows")]
-fn main() {
-    enum Message {
-        Quit,
-    }
-    let icon = IconSource::Resource("default");
-    let mut tray = TrayItem::new("ClipSync", icon).unwrap();
-
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    tray.add_menu_item("Quit", move || {
-        tx.send(Message::Quit).unwrap();
-    })
-    .unwrap();
-
-    std::thread::spawn(move || {
-        let runtime = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .unwrap();
-        runtime.block_on(svc_main()).expect("Failed to run service");
-    });
-
-    loop {
-        match rx.recv() {
-            Ok(Message::Quit) => {
-                warn!("Quit");
-                break;
-            }
-            _ => {}
-        }
-    }
+fn get_app_icon() -> IconSource {
+    IconSource::Resource("default")
 }
 
 #[cfg(target_os = "linux")]
-fn main() -> anyhow::Result<()> {
-    use std::io::Cursor;
-
-    enum Message {
-        Quit,
-    }
-
-    let decoder = png::Decoder::new(Cursor::new(include_bytes!("../icons/app-icon.png")));
-    let mut reader = decoder.read_info()?;
+fn get_app_icon() -> IconSource {
+    let decoder = png::Decoder::new(std::io::Cursor::new(include_bytes!(
+        "../icons/app-icon.png"
+    )));
+    let mut reader = decoder.read_info().expect("Failed to decode icon");
     let info = reader.info();
     let mut buf = vec![0; info.raw_bytes()];
-    let output_info = reader.next_frame(buf.as_mut_slice())?;
+    let output_info = reader
+        .next_frame(buf.as_mut_slice())
+        .expect("Failed to decode icon");
     output_info.buffer_size();
 
-    let icon = IconSource::Data {
+    IconSource::Data {
         width: output_info.width as i32,
         height: output_info.height as i32,
         data: buf[0..output_info.buffer_size()].to_vec(),
-    };
-    let mut tray = TrayItem::new("ClipSync", icon).unwrap();
+    }
+}
 
-    let (tx, rx) = std::sync::mpsc::sync_channel(1);
-    tray.add_menu_item("Quit", move || {
-        tx.send(Message::Quit).unwrap();
-    })
-    .unwrap();
+fn main() -> anyhow::Result<()> {
+    let mut tray = TrayItem::new("ClipSync", get_app_icon()).unwrap();
 
     std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .unwrap();
+            .expect("Failed to create runtime");
         runtime.block_on(svc_main()).expect("Failed to run service");
     });
 
-    loop {
-        if matches!(rx.recv()?, Message::Quit) {
-            warn!("Quit");
-            break;
+    #[cfg(target_os = "macos")]
+    {
+        tray.inner_mut().add_quit_item("Quit");
+        tray.inner_mut().display();
+    }
+
+    #[cfg(any(target_os = "windows", target_os = "linux"))]
+    {
+        enum Message {
+            Quit,
+        }
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        tray.add_menu_item("Quit", move || {
+            tx.send(Message::Quit).unwrap();
+        })?;
+        loop {
+            if matches!(rx.recv()?, Message::Quit) {
+                warn!("Quit");
+                break;
+            }
         }
     }
     Ok(())
