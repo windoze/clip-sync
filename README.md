@@ -11,7 +11,7 @@
 
 1. Setup MQTT broker
 
-2. Create config file `config.toml` at the default config path (`~/.config/clip-sync/config.toml` on Linux, `%APPDATA%\clip-sync\config.toml` on Windows, `~/Library/Application Support/clip-sync/config.toml` on macOS) with the following settings:
+2. Create config file `config.toml` at the default config path (`~/.config/clip-sync/config.toml` on Linux, `C:\Users\%USERNAME%\AppData\Roaming\clip-sync\config.toml` on Windows, `~/Library/Application Support/clip-sync/config.toml` on macOS) with the following settings:
 
     * `mqtt-server-addr`: MQTT broker address
     * `mqtt-server-port`: MQTT broker port
