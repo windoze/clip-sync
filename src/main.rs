@@ -67,7 +67,7 @@ impl<T: ClipboardProvider> ClipboardHandler for Handler<T> {
     }
 
     fn on_clipboard_error(&mut self, error: io::Error) -> CallbackResult {
-        eprintln!("Error: {}", error);
+        warn!("Error: {}", error);
         CallbackResult::Next
     }
 }
@@ -126,7 +126,6 @@ fn get_config_file() -> PathBuf {
 }
 
 async fn svc_main() -> anyhow::Result<()> {
-    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
     let config_path = Config::parse().config_path.unwrap_or(get_config_file());
     let config = std::fs::read_to_string(config_path)?;
     let args = toml::from_str::<Args>(&config)?;
@@ -215,7 +214,8 @@ fn get_app_icon() -> IconSource {
 }
 
 fn main() -> anyhow::Result<()> {
-    let mut tray = TrayItem::new("ClipSync", get_app_icon()).unwrap();
+    env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
+    let mut tray = TrayItem::new("ClipSync", get_app_icon())?;
 
     std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
