@@ -226,3 +226,48 @@ fn main() {
         }
     }
 }
+
+#[cfg(target_os = "linux")]
+fn main() -> anyhow::Result<()> {
+    use std::io::Cursor;
+
+    enum Message {
+        Quit,
+    }
+
+    let decoder = png::Decoder::new(Cursor::new(include_bytes!("../icons/app-icon.png")));
+    let mut reader = decoder.read_info()?;
+    let info = reader.info();
+    let mut buf = vec![0; info.raw_bytes()];
+    let output_info = reader.next_frame(buf.as_mut_slice())?;
+    output_info.buffer_size();
+
+    let icon = IconSource::Data {
+        width: output_info.width as i32,
+        height: output_info.height as i32,
+        data: buf[0..output_info.buffer_size()].to_vec(),
+    };
+    let mut tray = TrayItem::new("ClipSync", icon).unwrap();
+
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    tray.add_menu_item("Quit", move || {
+        tx.send(Message::Quit).unwrap();
+    })
+    .unwrap();
+
+    std::thread::spawn(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(svc_main()).expect("Failed to run service");
+    });
+
+    loop {
+        if matches!(rx.recv()?, Message::Quit) {
+            warn!("Quit");
+            break;
+        }
+    }
+    Ok(())
+}
