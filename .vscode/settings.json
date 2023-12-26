@@ -7,8 +7,11 @@
     "editor.formatOnSave": false
   },
   "cSpell.words": [
+    "clipsync",
     "gethostname",
+    "libxcb",
     "mqtt",
-    "rumqttc"
+    "rumqttc",
+    "xfixes"
   ]
 }

@@ -17,3 +17,15 @@ Setup MQTT broker and run `./target/release/clip-sync` with the following argume
     * `-w` or `--mqtt-password`: MQTT password, can be omitted if no authentication is required
     * `-t` or `--mqtt-topic`: MQTT topic, defaults to `clipboard`
     * `-c` or `--mqtt-client-id`: Client id, defaults to the hostname
+
+## Usage
+
+To automatically start the program on system startup:
+
+* Windows:
+    Create a shortcut to `clip-sync.exe` with required arguments in the startup folder.
+* macOS:
+    Update the `com.0d0a.clipsync.plist` file with the required arguments and copy it to `~/Library/LaunchAgents/`.
+    Then run `launchctl load ~/Library/LaunchAgents/com.0d0a.clipsync.plist`.
+* Linux:
+    Update the `clip-sync.desktop` file with the required arguments and copy it to `~/.config/autostart/`.

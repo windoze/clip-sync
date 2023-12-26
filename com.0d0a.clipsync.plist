@@ -6,7 +6,7 @@
         <string>com.0d0a.clipsync</string>
         <key>ProgramArguments</key>
         <array>
-            <string>/Users/chenxu/bin/clipsync</string>
+            <string>/Users/chenxu/bin/clip-sync</string>
             <string>-a</string>
             <string>192.168.2.50</string>
             <string>-p</string>
