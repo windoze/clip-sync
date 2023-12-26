@@ -23,5 +23,8 @@ tray-item = { git = "https://github.com/windoze/tray-item-rs.git", optional = tr
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git", features = ["ksni"] }
 png = "0.17"
 
+[target.'cfg(not(target_os="linux"))'.dependencies]
+tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
+
 [build-dependencies]
 embed-resource = "2.4"
