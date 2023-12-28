@@ -7,7 +7,6 @@ FROM alpine
 RUN apk add --update openssl bash
 COPY --from=builder /usr/src/target/x86_64-unknown-linux-musl/release/clip-sync /app/clip-sync
 COPY --from=builder /usr/src/config.toml /config/config.toml
-# USER 1000
+EXPOSE 3000
 WORKDIR /app
 CMD ["/app/clip-sync", "--config", "/config/config.toml"]
-
