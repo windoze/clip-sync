@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, warn};
 use poem::{
@@ -19,6 +21,7 @@ use tokio::sync::broadcast::{channel, Receiver, Sender};
 pub struct ServerConfig {
     pub endpoint: String,
     pub secret: Option<String>,
+    #[serde(default)]
     pub use_tls: bool,
     pub cert_path: Option<String>,
     pub key_path: Option<String>,
@@ -86,6 +89,9 @@ fn ws(Path(name): Path<String>, ws: WebSocket, sender: Data<&Sender<String>>) ->
         let name_clone = name.clone();
         tokio::spawn(async move {
             while let Some(Ok(msg)) = stream.next().await {
+                if let Message::Pong(_) = msg {
+                    continue;
+                }
                 if let Message::Text(text) = msg {
                     if let Ok(data) = serde_json::from_str::<ClipboardData>(&text) {
                         debug!("{}: {}", data.source, data.data);
@@ -109,10 +115,29 @@ fn ws(Path(name): Path<String>, ws: WebSocket, sender: Data<&Sender<String>>) ->
         });
 
         tokio::spawn(async move {
-            while let Ok(msg) = receiver.recv().await {
-                if sink.send(Message::Text(msg)).await.is_err() {
-                    warn!("Failed to send message to device '{}'.", &name);
-                    break;
+            loop {
+                match tokio::time::timeout(Duration::from_secs(5), receiver.recv()).await {
+                    Ok(Ok(msg)) => {
+                        if sink.send(Message::Text(msg)).await.is_err() {
+                            warn!("Failed to send message to device '{}'.", &name);
+                            break;
+                        }
+                    }
+                    Ok(Err(e)) => {
+                        // Channel closed
+                        warn!("Channel closed: {}", e);
+                        break;
+                    }
+                    Err(_) => {
+                        // Timeout, send ping
+                        match sink.send(Message::Ping(vec![])).await {
+                            Ok(_) => continue,
+                            Err(e) => {
+                                warn!("Failed to send ping: {}", e);
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         });
