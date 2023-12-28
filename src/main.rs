@@ -155,7 +155,7 @@ fn main() -> anyhow::Result<()> {
         })?;
         loop {
             if matches!(rx.recv()?, Message::Quit) {
-                warn!("Quit");
+                log::warn!("Quit");
                 break;
             }
         }
