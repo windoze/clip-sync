@@ -19,14 +19,17 @@ mod mqtt_client;
 pub use clipboard_handler::{ClipboardSink, ClipboardSource};
 
 #[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
 struct Args {
     #[cfg(not(feature = "server-only"))]
     pub roles: Vec<String>,
+    #[serde(default)]
     pub server: server::ServerConfig,
     #[cfg(not(feature = "server-only"))]
+    #[serde(default)]
     pub mqtt_client: mqtt_client::MqttClientConfig,
     #[cfg(not(feature = "server-only"))]
+    #[serde(default)]
     pub websocket_client: client::ClientConfig,
 }
 
