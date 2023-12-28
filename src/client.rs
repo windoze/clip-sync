@@ -39,7 +39,7 @@ async fn clip_sync_svc_impl(args: ClientConfig) -> anyhow::Result<()> {
 
     let req = Request::builder();
     let req = if args.secret.is_some() {
-        req.header("sec-websocket-key", args.secret.unwrap())
+        req.header("Authorization", format!("Bearer {}", args.secret.unwrap()))
     } else {
         req
     }

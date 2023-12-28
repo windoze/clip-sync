@@ -2,17 +2,21 @@ use futures_util::{SinkExt, StreamExt};
 use log::{debug, warn};
 use poem::{
     get, handler,
-    listener::TcpListener,
+    http::StatusCode,
+    listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener},
     web::{
+        headers::{self, authorization::Bearer, HeaderMapExt},
         websocket::{Message, WebSocket},
         Data, Html, Path,
     },
-    EndpointExt, IntoResponse, Route, Server,
+    Endpoint, EndpointExt, IntoResponse, Middleware, Request, Route, Server,
 };
 use serde::{Deserialize, Serialize};
 use tokio::sync::broadcast::{channel, Receiver, Sender};
 
-pub struct ServerArgs {
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct ServerConfig {
     pub endpoint: String,
     pub secret: Option<String>,
     pub use_tls: bool,
@@ -30,6 +34,44 @@ fn index() -> Html<&'static str> {
 struct ClipboardData {
     source: String,
     data: String,
+}
+
+struct ApiKeyAuth {
+    api_key: Option<String>,
+}
+
+impl<E: Endpoint> Middleware<E> for ApiKeyAuth {
+    type Output = ApiKeyAuthEndpoint<E>;
+
+    fn transform(&self, ep: E) -> Self::Output {
+        ApiKeyAuthEndpoint {
+            ep,
+            api_key: self.api_key.clone(),
+        }
+    }
+}
+
+struct ApiKeyAuthEndpoint<E> {
+    ep: E,
+    api_key: Option<String>,
+}
+
+#[poem::async_trait]
+impl<E: Endpoint> Endpoint for ApiKeyAuthEndpoint<E> {
+    type Output = E::Output;
+
+    async fn call(&self, req: Request) -> poem::Result<Self::Output> {
+        // Skip auth if no api key is set
+        if self.api_key.is_none() {
+            return self.ep.call(req).await;
+        }
+        if let Some(auth) = req.headers().typed_get::<headers::Authorization<Bearer>>() {
+            if auth.0.token() == self.api_key.as_ref().unwrap() {
+                return self.ep.call(req).await;
+            }
+        }
+        Err(poem::Error::from_status(StatusCode::UNAUTHORIZED))
+    }
 }
 
 #[handler]
@@ -82,26 +124,28 @@ pub async fn message_stash(mut receiver: Receiver<String>) {
     }
 }
 
-pub async fn server_main() -> Result<(), std::io::Error> {
+pub async fn server_main(args: ServerConfig) -> Result<(), std::io::Error> {
     let (sender, receiver) = channel::<String>(32);
     tokio::spawn(message_stash(receiver));
     let app = Route::new()
         .at("/", get(index))
-        .at("/clip-sync/:device_id", get(ws.data(sender)));
+        .at("/clip-sync/:device_id", get(ws.data(sender)))
+        .with(ApiKeyAuth {
+            api_key: args.secret,
+        });
 
-    Server::new(TcpListener::bind("0.0.0.0:3000"))
+    let listener = TcpListener::bind(args.endpoint);
+    if args.use_tls {
+        let cert = std::fs::read(args.cert_path.unwrap())?;
+        let key = std::fs::read(args.key_path.unwrap())?;
+        Server::new(
+            listener
+                .rustls(RustlsConfig::new().fallback(RustlsCertificate::new().key(key).cert(cert))),
+        )
         .run(app)
         .await?;
-    Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_server() {
-        env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug")).init();
-        server_main().await.unwrap();
+    } else {
+        Server::new(listener).run(app).await?;
     }
+    Ok(())
 }

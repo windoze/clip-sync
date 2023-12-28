@@ -19,9 +19,8 @@ pub use clipboard_handler::{ClipboardSink, ClipboardSource};
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
 struct Args {
     pub roles: Vec<String>,
-    #[serde(default, rename = "mqtt")]
+    pub server: server::ServerConfig,
     pub mqtt_client: mqtt_client::MqttClientConfig,
-    #[serde(default, rename = "websocket")]
     pub websocket_client: client::ClientConfig,
 }
 
@@ -43,7 +42,7 @@ async fn svc_main(config_path: PathBuf) -> anyhow::Result<()> {
     let mut tasks: Vec<JoinHandle<anyhow::Result<()>>> = vec![];
     if args.roles.contains(&"server".to_string()) {
         tasks.push(tokio::spawn(async {
-            server::server_main()
+            server::server_main(args.server)
                 .map_err(|e| anyhow::anyhow!("Server error: {}", e))
                 .await
         }));
@@ -111,6 +110,8 @@ fn main() -> anyhow::Result<()> {
     struct Config {
         #[arg(long = "config")]
         config_path: Option<std::path::PathBuf>,
+        #[arg(long, default_value = "false")]
+        no_tray: bool,
         #[command(flatten)]
         verbose: clap_verbosity_flag::Verbosity,
     }
@@ -120,9 +121,7 @@ fn main() -> anyhow::Result<()> {
         .filter_level(cli.verbose.log_level_filter())
         .init();
     let config_path = cli.config_path.unwrap_or(get_config_file());
-    let mut tray = TrayItem::new("ClipSync", get_app_icon())?;
-
-    std::thread::spawn(move || {
+    let join_handler = std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
@@ -131,6 +130,13 @@ fn main() -> anyhow::Result<()> {
             .block_on(svc_main(config_path))
             .expect("Failed to run service");
     });
+
+    if cli.no_tray {
+        join_handler.join().unwrap();
+        return Ok(());
+    }
+
+    let mut tray = TrayItem::new("ClipSync", get_app_icon())?;
 
     #[cfg(target_os = "macos")]
     {
