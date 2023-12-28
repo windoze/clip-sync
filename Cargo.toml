@@ -9,24 +9,25 @@ description = "A clipboard sync tool"
 anyhow = "1"
 log = "0.4"
 env_logger = "0.10"
-clipboard = "0.5"
-clipboard-master = "3"
 clap = { version = "4", features = ["derive"] }
 clap-verbosity-flag = "2"
 futures = { version = "0.3" }
-rumqttc = "0.23"
 tokio = { version = "1", features = ["sync"] }
-gethostname = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
-platform-dirs = "0.3.0"
-random-string = "1"
-tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-webpki-roots"] }
-url = "2"
-server = { path = "server" }
-
 async-trait = { version = "0.1" }
+platform-dirs = "0.3"
+
+rumqttc = { version = "0.23", optional = true }
+clipboard = { version = "0.5", optional = true }
+clipboard-master = { version = "3", optional = true }
+gethostname = { version = "0.4", optional = true }
+random-string = { version = "1", optional = true }
+tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-webpki-roots"], optional = true }
+url = { version = "2", optional = true }
+
+server = { path = "server" }
 
 [target.'cfg(target_os="linux")'.dependencies]
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git", features = ["ksni"] }
@@ -39,7 +40,15 @@ tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
 embed-resource = "2.4"
 
 [features]
-default = []
+default = [
+    "rumqttc",
+    "clipboard",
+    "clipboard-master",
+    "gethostname",
+    "random-string",
+    "tokio-tungstenite",
+    "url",
+]
 server-only = []
 
 [workspace]
