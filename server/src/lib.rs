@@ -90,6 +90,7 @@ fn ws(Path(name): Path<String>, ws: WebSocket, sender: Data<&Sender<String>>) ->
         tokio::spawn(async move {
             while let Some(Ok(msg)) = stream.next().await {
                 if let Message::Pong(_) = msg {
+                    debug!("Pong from device '{}'.", &name_clone);
                     continue;
                 }
                 if let Message::Text(text) = msg {
@@ -129,7 +130,8 @@ fn ws(Path(name): Path<String>, ws: WebSocket, sender: Data<&Sender<String>>) ->
                         break;
                     }
                     Err(_) => {
-                        // Timeout, send ping
+                        // Timeout
+                        debug!("Sending ping to device '{}'.", &name);
                         match sink.send(Message::Ping(vec![])).await {
                             Ok(_) => continue,
                             Err(e) => {
