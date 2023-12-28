@@ -26,7 +26,6 @@ impl MqttSubscriber {
     }
 }
 
-#[async_trait::async_trait]
 impl ClipboardSource for MqttSubscriber {
     async fn poll(&mut self) -> anyhow::Result<String> {
         loop {
@@ -59,7 +58,6 @@ impl MqttPublisher {
     }
 }
 
-#[async_trait::async_trait]
 impl ClipboardSink for MqttPublisher {
     async fn publish(&mut self, data: String) -> anyhow::Result<()> {
         self.client

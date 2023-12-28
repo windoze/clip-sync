@@ -58,7 +58,6 @@ async fn clip_sync_svc_impl(args: ClientConfig) -> anyhow::Result<()> {
     clipboard_handler::start(sender_id, read, write).await
 }
 
-#[async_trait::async_trait]
 impl ClipboardSource for SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>> {
     async fn poll(&mut self) -> anyhow::Result<String> {
         while let Some(msg) = self.next().await {
@@ -72,7 +71,6 @@ impl ClipboardSource for SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>
     }
 }
 
-#[async_trait::async_trait]
 impl<T> ClipboardSink for T
 where
     T: Sink<Message> + Send + Unpin,

@@ -2,19 +2,18 @@ use std::sync::{Arc, RwLock};
 
 use clipboard::{ClipboardContext, ClipboardProvider};
 use clipboard_master::{CallbackResult, ClipboardHandler, Master};
+use futures::Future;
 use log::{debug, warn};
 use tokio::sync::mpsc::{Receiver, Sender};
 
 use crate::ClipboardData;
 
-#[async_trait::async_trait]
 pub trait ClipboardSource {
-    async fn poll(&mut self) -> anyhow::Result<String>;
+    fn poll(&mut self) -> impl Future<Output = anyhow::Result<String>>;
 }
 
-#[async_trait::async_trait]
 pub trait ClipboardSink {
-    async fn publish(&mut self, data: String) -> anyhow::Result<()>;
+    fn publish(&mut self, data: String) -> impl Future<Output = anyhow::Result<()>>;
 }
 
 pub struct Handler<T: ClipboardProvider> {
