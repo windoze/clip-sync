@@ -30,8 +30,8 @@ url = { version = "2", optional = true }
 server = { path = "server" }
 
 [target.'cfg(target_os="linux")'.dependencies]
-tray-item = { git = "https://github.com/windoze/tray-item-rs.git", features = ["ksni"] }
-png = "0.17"
+tray-item = { git = "https://github.com/windoze/tray-item-rs.git", features = ["ksni"], optional = true }
+png = { version = "0.17", optional = true }
 
 [target.'cfg(not(target_os="linux"))'.dependencies]
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
@@ -47,6 +47,8 @@ default = [
     "gethostname",
     "random-string",
     "tokio-tungstenite",
+    "tray-item",
+    "png",
     "url",
 ]
 server-only = []
