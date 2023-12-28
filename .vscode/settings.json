@@ -12,6 +12,7 @@
     "libxcb",
     "mqtt",
     "rumqttc",
+    "tungstenite",
     "xfixes"
   ]
 }

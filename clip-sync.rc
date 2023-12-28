@@ -1,1 +1,3 @@
+#define RT_MANIFEST 24
+1 RT_MANIFEST "clip-sync.exe.manifest"
 default ICON "icons/app-icon.ico"
