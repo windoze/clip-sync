@@ -38,8 +38,11 @@ tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
 [build-dependencies]
 embed-resource = "2.4"
 
-[workspace]
+[features]
+default = []
+server-only = []
 
+[workspace]
 members = [
     "server",
 ]
