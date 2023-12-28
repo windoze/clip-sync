@@ -159,6 +159,7 @@ fn main() -> anyhow::Result<()> {
     struct Config {
         #[arg(long = "config")]
         config_path: Option<std::path::PathBuf>,
+        #[cfg(not(feature = "server-only"))]
         #[arg(long, default_value = "false")]
         no_tray: bool,
         #[command(flatten)]
@@ -180,13 +181,18 @@ fn main() -> anyhow::Result<()> {
             .expect("Failed to run service");
     });
 
-    if cli.no_tray {
+    #[cfg(feature = "server-only")]
+    {
         join_handler.join().unwrap();
-        return Ok(());
     }
 
     #[cfg(not(feature = "server-only"))]
     {
+        if cli.no_tray {
+            join_handler.join().unwrap();
+            return Ok(());
+        }
+
         tray::run_tray()?;
     }
 
