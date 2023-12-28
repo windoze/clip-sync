@@ -2,6 +2,7 @@
 
 use clap::Parser;
 use futures::TryFutureExt;
+use log::info;
 use platform_dirs::AppDirs;
 use serde::{Deserialize, Serialize};
 
@@ -49,6 +50,7 @@ async fn svc_main(config_path: PathBuf) -> anyhow::Result<()> {
         let mut tasks: Vec<tokio::task::JoinHandle<anyhow::Result<()>>> = vec![];
         if args.roles.contains(&"server".to_string()) {
             tasks.push(tokio::spawn(async {
+                info!("Starting websocket server");
                 server::server_main(args.server)
                     .map_err(|e| anyhow::anyhow!("Server error: {}", e))
                     .await
@@ -56,6 +58,7 @@ async fn svc_main(config_path: PathBuf) -> anyhow::Result<()> {
         }
         if args.roles.contains(&"mqtt-client".to_string()) {
             tasks.push(tokio::spawn(async {
+                info!("Starting MQTT client");
                 mqtt_client::clip_sync_svc(args.mqtt_client)
                     .map_err(|e| anyhow::anyhow!("Mqtt client error: {}", e))
                     .await
@@ -63,6 +66,7 @@ async fn svc_main(config_path: PathBuf) -> anyhow::Result<()> {
         }
         if args.roles.contains(&"websocket-client".to_string()) {
             tasks.push(tokio::spawn(async {
+                info!("Starting websocket client");
                 client::clip_sync_svc(args.websocket_client)
                     .map_err(|e| anyhow::anyhow!("Mqtt client error: {}", e))
                     .await
@@ -80,6 +84,7 @@ async fn svc_main(config_path: PathBuf) -> anyhow::Result<()> {
     }
     #[cfg(feature = "server-only")]
     {
+        info!("Starting websocket server");
         server::server_main(args.server)
             .map_err(|e| anyhow::anyhow!("Server error: {}", e))
             .await?;
@@ -170,6 +175,7 @@ fn main() -> anyhow::Result<()> {
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
         .init();
+    info!("Starting");
     let config_path = cli.config_path.unwrap_or(get_config_file());
     let join_handler = std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()

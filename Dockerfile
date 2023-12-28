@@ -9,5 +9,5 @@ COPY --from=builder /usr/src/target/x86_64-unknown-linux-musl/release/clip-sync 
 COPY --from=builder /usr/src/config.toml /config/config.toml
 # USER 1000
 WORKDIR /app
-CMD ["/app/feathr-registry", "--config", "/config/config.toml"]
+CMD ["/app/clip-sync", "--config", "/config/config.toml"]
 

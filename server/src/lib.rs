@@ -1,5 +1,5 @@
 use futures_util::{SinkExt, StreamExt};
-use log::{debug, warn};
+use log::{debug, info, warn};
 use poem::{
     get, handler,
     http::StatusCode,
@@ -76,9 +76,11 @@ impl<E: Endpoint> Endpoint for ApiKeyAuthEndpoint<E> {
 
 #[handler]
 fn ws(Path(name): Path<String>, ws: WebSocket, sender: Data<&Sender<String>>) -> impl IntoResponse {
+    debug!("New connection from device '{}'.", &name);
     let sender = sender.clone();
     let mut receiver = sender.subscribe();
     ws.on_upgrade(move |socket| async move {
+        info!("Websocket to device '{}' created.", &name);
         let (mut sink, mut stream) = socket.split();
 
         let name_clone = name.clone();
