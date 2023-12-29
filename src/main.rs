@@ -118,7 +118,7 @@ mod tray {
 
     #[cfg(target_os = "linux")]
     fn get_app_icon() -> IconSource {
-        let decoder = png::Decoder::new(std::io::Cursor::new(APP_ICON));
+        let decoder = png::Decoder::new(std::io::Cursor::new(crate::APP_ICON));
         let mut reader = decoder.read_info().expect("Failed to decode icon");
         let info = reader.info();
         let mut buf = vec![0; info.raw_bytes()];
