@@ -269,7 +269,7 @@ fn api(
             get(get_device_list).data(global_state.clone()),
         )
         .at("/query", get(query).data(global_state.clone()))
-        .with(Cors::new().allow_origin("*"))
+        .with(Cors::new())
         .with(auth::ApiKeyAuth::new(args.secret))
 }
 
