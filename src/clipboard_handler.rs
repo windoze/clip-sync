@@ -1,4 +1,7 @@
-use std::sync::{Arc, RwLock};
+use std::{
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
 use clipboard::{ClipboardContext, ClipboardProvider};
 use clipboard_master::{CallbackResult, ClipboardHandler, Master};
@@ -89,13 +92,25 @@ pub async fn clipboard_publisher(
     mut receiver: Receiver<ClipboardData>,
     last_text: Arc<RwLock<String>>,
 ) -> anyhow::Result<()> {
-    while let Some(data) = receiver.recv().await {
-        if data.data.is_empty() || data.data == *last_text.read().unwrap() {
-            debug!("Skipping clipboard update from self");
-            continue;
+    loop {
+        match tokio::time::timeout(Duration::from_secs(5), receiver.recv()).await {
+            Ok(Some(data)) => {
+                if data.data.is_empty() || data.data == *last_text.read().unwrap() {
+                    debug!("Skipping clipboard update from self");
+                    continue;
+                }
+                let payload = serde_json::to_string(&data).unwrap();
+                sink.publish(payload).await?;
+            }
+            Ok(None) => {
+                debug!("Channel closed");
+                break;
+            }
+            Err(_) => {
+                debug!("Sending ping to server");
+                sink.publish(Default::default()).await?;
+            }
         }
-        let payload = serde_json::to_string(&data).unwrap();
-        sink.publish(payload).await.ok();
     }
     Ok(())
 }
@@ -109,7 +124,8 @@ pub async fn clipboard_subscriber(
         anyhow::anyhow!("Failed to initialize clipboard provider: {}", e.to_string())
     })?;
 
-    while let Ok(payload) = source.poll().await {
+    loop {
+        let payload = source.poll().await?;
         debug!("Received = {:?}", payload);
         if let Ok(content) = serde_json::from_slice::<ClipboardData>(payload.as_bytes()) {
             debug!("Clipboard data = {:?}", content);
@@ -126,5 +142,4 @@ pub async fn clipboard_subscriber(
             warn!("Failed to deserialize clipboard data");
         }
     }
-    Ok(())
 }
