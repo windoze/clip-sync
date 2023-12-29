@@ -76,16 +76,13 @@ where
     T: Sink<Message> + Send + Unpin,
     <T as Sink<Message>>::Error: Debug,
 {
-    async fn publish(&mut self, data: String) -> anyhow::Result<()> {
-        if data.is_empty() {
-            self.send(Message::Ping(vec![]))
-                .await
-                .map_err(|e: <T as Sink<Message>>::Error| anyhow::anyhow!("{:?}", e))?;
-        } else {
-            self.send(Message::Text(data))
-                .await
-                .map_err(|e: <T as Sink<Message>>::Error| anyhow::anyhow!("{:?}", e))?;
-        }
+    async fn publish(&mut self, data: Option<String>) -> anyhow::Result<()> {
+        self.send(match data {
+            Some(data) => Message::Text(data),
+            None => Message::Ping(vec![]),
+        })
+        .await
+        .map_err(|e: <T as Sink<Message>>::Error| anyhow::anyhow!("{:?}", e))?;
         Ok(())
     }
 }

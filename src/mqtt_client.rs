@@ -59,14 +59,13 @@ impl MqttPublisher {
 }
 
 impl ClipboardSink for MqttPublisher {
-    async fn publish(&mut self, data: String) -> anyhow::Result<()> {
-        if data.is_empty() {
-            return Ok(());
+    async fn publish(&mut self, data: Option<String>) -> anyhow::Result<()> {
+        if let Some(data) = data {
+            self.client
+                .publish(self.topic.clone(), QoS::AtLeastOnce, false, data)
+                .await
+                .ok();
         }
-        self.client
-            .publish(self.topic.clone(), QoS::AtLeastOnce, false, data)
-            .await
-            .ok();
         Ok(())
     }
 }

@@ -16,7 +16,7 @@ pub trait ClipboardSource {
 }
 
 pub trait ClipboardSink {
-    fn publish(&mut self, data: String) -> impl Future<Output = anyhow::Result<()>>;
+    fn publish(&mut self, data: Option<String>) -> impl Future<Output = anyhow::Result<()>>;
 }
 
 pub struct Handler<T: ClipboardProvider> {
@@ -100,7 +100,7 @@ pub async fn clipboard_publisher(
                     continue;
                 }
                 let payload = serde_json::to_string(&data).unwrap();
-                sink.publish(payload).await?;
+                sink.publish(Some(payload)).await?;
             }
             Ok(None) => {
                 debug!("Channel closed");
@@ -108,7 +108,7 @@ pub async fn clipboard_publisher(
             }
             Err(_) => {
                 debug!("Sending ping to server");
-                sink.publish(Default::default()).await?;
+                sink.publish(None).await?;
             }
         }
     }
