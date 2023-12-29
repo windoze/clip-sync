@@ -1,3 +1,36 @@
+# clip-sync
+
+# Roles can be "server", "websocket-client", "mqtt-client"
+# "server" starts a websocket server that can be used by clients to sync their clipboards
+# "websocket-client" connects to a server
+# "mqtt-client" connects to an MQTT broker and publishes clipboard updates to a topic
+roles = ["server", "websocket-client", "mqtt-client"]
+
+# Server configuration
+# Only used if "server" is in the roles list
+[server]
+endpoint = "0.0.0.0:443"
+# Set to `true` if you want to use TLS, the server cert is verified by clients with system Root CAs, so you should use a cert signed by a trusted CA,
+# Or you have to add the CA cert to the client's trust store
+use-tls = true
+# Ignored if use-tls is false
+cert-path = "/path/to/server.crt"
+# Ignored if use-tls is false
+key-path = "/path/to/server.key"
+# Can be omitted if authentication is not required
+secret = "magicword"
+
+# Websocket client configuration
+# Only used if "websocket-client" is in the roles list
+[websocket-client]
+# Protocol can be "ws" or "wss", depending on whether the server uses TLS
+server-url = "wss://server.example.com/clip-sync"
+# Can be omitted if authentication is not required
+secret = "magicword"
+
+# MQTT client configuration
+# Only used if "mqtt-client" is in the roles list
+[mqtt-client]
 mqtt-server-addr = "mqtt-server.example.com"
 mqtt-server-port = 1883
 # Can be omitted if no authentication is required
