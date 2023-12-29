@@ -8,6 +8,7 @@ use poem::{
     get, handler,
     http::StatusCode,
     listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener},
+    middleware::Cors,
     web::{
         headers::{HeaderMapExt, Range},
         websocket::{Message, WebSocket},
@@ -261,13 +262,14 @@ async fn query(
 fn api(
     args: ServerConfig,
     global_state: Arc<RwLock<GlobalState>>,
-) -> auth::ApiKeyAuthEndpoint<poem::Route> {
+) -> auth::ApiKeyAuthEndpoint<poem::middleware::CorsEndpoint<poem::Route>> {
     Route::new()
         .at(
             "/device-list",
             get(get_device_list).data(global_state.clone()),
         )
         .at("/query", get(query).data(global_state.clone()))
+        .with(Cors::new().allow_origin("*"))
         .with(auth::ApiKeyAuth::new(args.secret))
 }
 
