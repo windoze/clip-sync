@@ -16,6 +16,8 @@ mod clipboard_handler;
 mod mqtt_client;
 mod server;
 
+pub static APP_ICON: &[u8] = include_bytes!("../icons/app-icon.png");
+
 #[cfg(not(feature = "server-only"))]
 pub use clipboard_handler::{ClipboardSink, ClipboardSource};
 
@@ -116,9 +118,7 @@ mod tray {
 
     #[cfg(target_os = "linux")]
     fn get_app_icon() -> IconSource {
-        let decoder = png::Decoder::new(std::io::Cursor::new(include_bytes!(
-            "../icons/app-icon.png"
-        )));
+        let decoder = png::Decoder::new(std::io::Cursor::new(APP_ICON));
         let mut reader = decoder.read_info().expect("Failed to decode icon");
         let info = reader.info();
         let mut buf = vec![0; info.raw_bytes()];

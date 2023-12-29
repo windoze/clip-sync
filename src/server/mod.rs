@@ -1,25 +1,24 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{ops::Bound, path::PathBuf, sync::Arc, time::Duration};
 
 use chrono::{TimeZone, Utc};
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, warn};
 use poem::{
+    error::StaticFileError,
     get, handler,
     http::StatusCode,
     listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener},
     web::{
+        headers::{HeaderMapExt, Range},
         websocket::{Message, WebSocket},
-        Data, Html, Json, Path,
+        Data, Html, Json, Path, StaticFileResponse,
     },
-    EndpointExt, IntoResponse, Request, Route, Server,
+    Body, EndpointExt, IntoResponse, Request, Route, Server,
 };
 use serde::{Deserialize, Serialize};
-use tokio::sync::{
-    broadcast::{channel, Receiver},
-    RwLock,
-};
+use tokio::sync::{broadcast::channel, RwLock};
 
-use crate::server::global_state::GlobalState;
+use crate::{server::global_state::GlobalState, APP_ICON};
 
 mod auth;
 mod global_state;
@@ -43,6 +42,48 @@ pub struct ServerConfig {
 fn index() -> Html<&'static str> {
     // TODO: Add a proper index page
     Html("<html><head><title>ClipSync</title></head><body>ClipSync Server</body></html>")
+}
+
+#[handler]
+fn fav_icon(req: &Request) -> Result<StaticFileResponse, StaticFileError> {
+    let range = req.headers().typed_get::<Range>();
+    let mut content_range = None;
+    let mut content_length;
+    let body = if let Some((start, end)) = range.and_then(|range| range.iter().next()) {
+        let start = match start {
+            Bound::Included(n) => n,
+            Bound::Excluded(n) => n + 1,
+            Bound::Unbounded => 0,
+        };
+        let end = match end {
+            Bound::Included(n) => n + 1,
+            Bound::Excluded(n) => n,
+            Bound::Unbounded => APP_ICON.len() as u64,
+        };
+        if end < start || end > APP_ICON.len() as u64 {
+            // builder.typed_header(ContentRange::unsatisfied_bytes(length))
+            return Err(StaticFileError::RangeNotSatisfiable {
+                size: APP_ICON.len() as u64,
+            });
+        }
+
+        if start != 0 || end != APP_ICON.len() as u64 {
+            content_range = Some((start..end, APP_ICON.len() as u64));
+        }
+        content_length = end - start;
+        Body::from(&APP_ICON[start as usize..end as usize])
+    } else {
+        content_length = APP_ICON.len() as u64;
+        Body::from(APP_ICON)
+    };
+    Ok(StaticFileResponse::Ok {
+        body,
+        content_length,
+        content_type: Some("image/png".to_string()),
+        etag: None,
+        last_modified: None,
+        content_range,
+    })
 }
 
 fn default_timestamp() -> i64 {
@@ -217,13 +258,6 @@ async fn query(
     }
 }
 
-async fn message_stash(mut receiver: Receiver<String>, _global_state: Arc<RwLock<GlobalState>>) {
-    // TODO: Store messages in a database
-    while let Ok(msg) = receiver.recv().await {
-        debug!("Message: {}", msg);
-    }
-}
-
 fn api(
     args: ServerConfig,
     global_state: Arc<RwLock<GlobalState>>,
@@ -238,11 +272,11 @@ fn api(
 }
 
 pub async fn server_main(args: ServerConfig) -> Result<(), std::io::Error> {
-    let (sender, receiver) = channel::<String>(32);
+    let (sender, _) = channel::<String>(32);
     let global_state = Arc::new(RwLock::new(GlobalState::new(&args, sender)));
-    tokio::spawn(message_stash(receiver, global_state.clone()));
     let app = Route::new()
         .at("/", get(index))
+        .at("/favicon.ico", get(fav_icon))
         .at("/clip-sync/:device_id", get(ws.data(global_state.clone())))
         .nest("/api", api(args.clone(), global_state));
 

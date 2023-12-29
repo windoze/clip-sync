@@ -10,6 +10,7 @@
     "clipsync",
     "gethostname",
     "libxcb",
+    "Mmap",
     "mqtt",
     "rumqttc",
     "rustls",

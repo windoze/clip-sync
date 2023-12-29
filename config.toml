@@ -19,6 +19,8 @@ cert-path = "/path/to/server.crt"
 key-path = "/path/to/server.key"
 # Can be omitted if authentication is not required
 secret = "magicword"
+# Index is in memory if omitted, specify a path to a directory to use a persistent index
+index-path = "/path/to/index/dir"
 
 # Websocket client configuration
 # Only used if "websocket-client" is in the roles list
