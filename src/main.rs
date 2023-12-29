@@ -14,6 +14,7 @@ mod client;
 mod clipboard_handler;
 #[cfg(not(feature = "server-only"))]
 mod mqtt_client;
+mod server;
 
 #[cfg(not(feature = "server-only"))]
 pub use clipboard_handler::{ClipboardSink, ClipboardSource};
