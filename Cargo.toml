@@ -21,6 +21,7 @@ platform-dirs = "0.3"
 futures-util = "0.3"
 poem = { version = "1", features = ["websocket", "rustls", "static-files"] }
 tantivy = { version = "0.21" }
+tantivy-jieba = "0.10.0"
 chrono = "0.4"
 
 rumqttc = { version = "0.23", optional = true }

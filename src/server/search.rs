@@ -9,7 +9,9 @@ use tantivy::{
     merge_policy::LogMergePolicy,
     query::{AllQuery, BooleanQuery, FuzzyTermQuery, Query, QueryParser, RangeQuery},
     query_grammar::Occur,
-    schema::{Field, Schema, FAST, STORED, TEXT},
+    schema::{
+        Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, STORED, TEXT,
+    },
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
 };
 
@@ -37,8 +39,16 @@ pub struct Search {
 impl Search {
     pub fn new(index_path: Option<PathBuf>) -> Self {
         let mut schema_builder = Schema::builder();
+
+        let text_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer("jieba")
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
         let source = schema_builder.add_text_field("source", TEXT | STORED);
-        let content = schema_builder.add_text_field("content", TEXT | STORED);
+        let content = schema_builder.add_text_field("content", text_options);
         let timestamp = schema_builder.add_i64_field("timestamp", FAST | STORED);
         let schema = schema_builder.build();
         let index = match index_path {
@@ -48,6 +58,9 @@ impl Search {
             }
             None => Index::create_in_ram(schema.clone()),
         };
+        index
+            .tokenizers()
+            .register("jieba", tantivy_jieba::JiebaTokenizer {});
         let reader = index
             .reader_builder()
             .reload_policy(ReloadPolicy::OnCommit)
