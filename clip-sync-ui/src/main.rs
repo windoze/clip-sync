@@ -7,7 +7,11 @@ use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use gloo_timers::future::sleep;
 
-pub static BASE_API_URL: &str = "http://localhost:3000/api";
+pub static BASE_API_URL: &str = "/api";
+
+pub fn base_url() -> String {
+    web_sys::window().unwrap().location().origin().unwrap()
+}
 
 #[derive(Clone, PartialEq, Eq, Deserialize, Serialize, Debug)]
 pub struct ClipboardEntry {
@@ -18,7 +22,7 @@ pub struct ClipboardEntry {
 
 pub async fn get_entries(s: String) -> Result<Vec<ClipboardEntry>, reqwest::Error> {
     log::info!("Fetching for {}", s);
-    let url = format!("{}/query", BASE_API_URL);
+    let url = format!("{}/{BASE_API_URL}/query", base_url());
     let params = [("q", s)];
     let url = reqwest::Url::parse_with_params(&url, &params).unwrap();
     let entries = reqwest::get(url)

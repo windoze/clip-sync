@@ -291,7 +291,7 @@ pub async fn server_main(args: ServerConfig) -> Result<(), std::io::Error> {
     let app = Route::new()
         .nest(
             "/",
-            StaticFilesEndpoint::new("./clip-sync-ui/dist").index_file("index.html"),
+            StaticFilesEndpoint::new("./static-files").index_file("index.html"),
         )
         .at("/favicon.ico", get(fav_icon))
         .at("/clip-sync/:device_id", get(ws.data(global_state.clone())))
