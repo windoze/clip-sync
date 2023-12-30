@@ -7,7 +7,7 @@ use tantivy::{
     directory::MmapDirectory,
     doc,
     merge_policy::LogMergePolicy,
-    query::{AllQuery, BooleanQuery, FuzzyTermQuery, Query, RangeQuery},
+    query::{AllQuery, BooleanQuery, FuzzyTermQuery, Query, QueryParser, RangeQuery},
     query_grammar::Occur,
     schema::{Field, Schema, FAST, STORED, TEXT},
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
@@ -31,6 +31,7 @@ pub struct Search {
     source: Field,
     content: Field,
     timestamp: Field,
+    query_parser: QueryParser,
 }
 
 impl Search {
@@ -52,12 +53,16 @@ impl Search {
             .reload_policy(ReloadPolicy::OnCommit)
             .try_into()
             .unwrap();
+        let mut query_parser = QueryParser::for_index(&index, vec![content]);
+        query_parser.set_conjunction_by_default();
+        query_parser.set_field_fuzzy(content, true, 2, true);
         Self {
             index,
             reader,
             source,
             content,
             timestamp,
+            query_parser,
         }
     }
 
@@ -74,6 +79,27 @@ impl Search {
         Ok(())
     }
 
+    pub fn get_device_list(&self) -> anyhow::Result<HashSet<String>> {
+        let searcher = self.reader.searcher();
+        let mut device_list = HashSet::new();
+        let collector = TopDocs::with_limit(1000);
+        let result: Vec<(f64, DocAddress)> = searcher
+            .search(&AllQuery, &collector)?
+            .into_iter()
+            .map(|(ts, d)| (ts as f64, d))
+            .collect();
+        for (_, doc_address) in result {
+            let doc = searcher.doc(doc_address)?;
+            let source = doc
+                .get_first(self.source)
+                .and_then(|v| v.as_text())
+                .map(|v| v.to_string())
+                .unwrap_or_default();
+            device_list.insert(source);
+        }
+        Ok(device_list)
+    }
+
     pub fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardData>> {
         let searcher = self.reader.searcher();
 
@@ -83,8 +109,11 @@ impl Search {
                 if query.is_empty() {
                     Box::new(AllQuery)
                 } else {
-                    let term = Term::from_field_text(self.content, query);
-                    Box::new(FuzzyTermQuery::new(term, 2, true))
+                    let (q, errors) = self.query_parser.parse_query_lenient(query);
+                    if !errors.is_empty() {
+                        debug!("Query parse error: {:?}", errors);
+                    }
+                    q
                 }
             }
             None => {

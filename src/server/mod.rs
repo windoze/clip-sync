@@ -4,6 +4,7 @@ use chrono::{TimeZone, Utc};
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, warn};
 use poem::{
+    endpoint::StaticFilesEndpoint,
     error::StaticFileError,
     get, handler,
     http::StatusCode,
@@ -186,7 +187,14 @@ async fn ws(
 async fn get_device_list(data: Data<&Arc<RwLock<GlobalState>>>) -> impl IntoResponse {
     let global_state = data.0.clone();
     let device_list = global_state.read().await.get_device_list();
-    Json(serde_json::to_string(&device_list).unwrap())
+    Json(device_list)
+}
+
+#[handler]
+async fn get_online_device_list(data: Data<&Arc<RwLock<GlobalState>>>) -> impl IntoResponse {
+    let global_state = data.0.clone();
+    let device_list = global_state.read().await.get_online_device_list();
+    Json(device_list)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -268,6 +276,10 @@ fn api(
             "/device-list",
             get(get_device_list).data(global_state.clone()),
         )
+        .at(
+            "/online-device-list",
+            get(get_online_device_list).data(global_state.clone()),
+        )
         .at("/query", get(query).data(global_state.clone()))
         .with(Cors::new())
         .with(auth::ApiKeyAuth::new(args.secret))
@@ -277,7 +289,10 @@ pub async fn server_main(args: ServerConfig) -> Result<(), std::io::Error> {
     let (sender, _) = channel::<String>(32);
     let global_state = Arc::new(RwLock::new(GlobalState::new(&args, sender)));
     let app = Route::new()
-        .at("/", get(index))
+        .nest(
+            "/",
+            StaticFilesEndpoint::new("./clip-sync-ui/dist").index_file("index.html"),
+        )
         .at("/favicon.ico", get(fav_icon))
         .at("/clip-sync/:device_id", get(ws.data(global_state.clone())))
         .nest("/api", api(args.clone(), global_state));

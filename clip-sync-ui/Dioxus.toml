@@ -1,0 +1,22 @@
+[application]
+name = "clip-sync-ui"
+default_platform = "web"
+out_dir = "dist"
+asset_dir = "assets"
+
+[web.app]
+title = "ClipSync"
+
+[web.watcher]
+reload_html = true
+watch_path = ["src", "assets"]
+
+[web.resource]
+style = [
+    "https://unpkg.com/tailwindcss@^2.0/dist/tailwind.min.css"
+]
+
+[web.resource.dev]
+
+[[web.proxy]]
+backend = "http://192.168.2.50:23000/api/"
