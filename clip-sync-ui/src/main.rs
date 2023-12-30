@@ -1,4 +1,5 @@
 use std::time::Duration;
+use chrono::{Utc, TimeZone};
 use dioxus::{
     html::GlobalAttributes,
     prelude::*,
@@ -39,10 +40,9 @@ fn Entry(cx: Scope, entry: ClipboardEntry) -> Element {
         data,
         timestamp,
     } = entry;
-    let timestamp = chrono::NaiveDateTime::from_timestamp_opt(*timestamp, 0)
-        .unwrap()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let datetime = Utc.timestamp_opt(*timestamp, 0).unwrap();
+    let local_time = datetime.with_timezone(&chrono::Local);
+    let time_string = local_time.format("%Y-%m-%d %H:%M:%S %Z").to_string();
     cx.render(rsx! {
         li {
             class: "flex justify-between gap-x-6 py-5",
@@ -60,7 +60,7 @@ fn Entry(cx: Scope, entry: ClipboardEntry) -> Element {
                     }
                     span {
                         class: "inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10",
-                        "{timestamp}"
+                        "{time_string}"
                     }
                 }
             }
