@@ -55,7 +55,7 @@ impl Search {
             .unwrap();
         let mut query_parser = QueryParser::for_index(&index, vec![content]);
         query_parser.set_conjunction_by_default();
-        query_parser.set_field_fuzzy(content, true, 2, true);
+        query_parser.set_field_fuzzy(content, true, 1, true);
         Self {
             index,
             reader,
