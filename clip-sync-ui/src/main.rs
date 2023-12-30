@@ -22,8 +22,8 @@ pub struct ClipboardEntry {
 
 pub async fn get_entries(s: String) -> Result<Vec<ClipboardEntry>, reqwest::Error> {
     log::info!("Fetching for {}", s);
-    let url = format!("{}/{BASE_API_URL}/query", base_url());
-    let params = [("q", s)];
+    let url = format!("{}{BASE_API_URL}/query", base_url());
+    let params = [("q", s.as_str()), ("size", "100")];
     let url = reqwest::Url::parse_with_params(&url, &params).unwrap();
     let entries = reqwest::get(url)
         .await?
@@ -78,7 +78,7 @@ pub fn app(cx: Scope) -> Element {
     render! {
         link {
             rel: "stylesheet",
-            href: "https://unpkg.com/tailwindcss@^2.0/dist/tailwind.min.css",
+            href: "/tailwind.min.css",
             href: "/style.css"
         }
         div {
