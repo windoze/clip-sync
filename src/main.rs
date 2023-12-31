@@ -66,11 +66,17 @@ pub struct ClipboardData {
     pub data: ClipboardContent,
 }
 
-#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ImageData {
     pub width: usize,
     pub height: usize,
     pub data: Vec<u8>,
+}
+
+impl std::fmt::Debug for ImageData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}x{}", self.width, self.height)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]

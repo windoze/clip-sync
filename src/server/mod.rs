@@ -285,9 +285,12 @@ fn api(
         .with(auth::ApiKeyAuth::new(args.secret))
 }
 
-pub async fn server_main(args: ServerConfig) -> Result<(), std::io::Error> {
+pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
     let (sender, _) = channel::<String>(32);
-    let image_path = args.image_path.clone().unwrap_or(PathBuf::from("./images"));
+    if args.image_path.is_none() {
+        args.image_path = Some(PathBuf::from("./images"));
+    }
+    let image_path = args.image_path.clone().unwrap();
     let global_state = Arc::new(RwLock::new(GlobalState::new(&args, sender)));
     let app = Route::new()
         .nest(

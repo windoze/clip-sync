@@ -183,7 +183,7 @@ fn get_clipboard_content(provider: &mut Clipboard) -> anyhow::Result<Option<Clip
         debug!("Got text from clipboard: {}", text);
         Ok(Some(ClipboardContent::Text(text)))
     } else if let Some(image) = get_clipboard_image(provider)? {
-        debug!("Got image from clipboard.");
+        debug!("Got image from clipboard {:?}.", image);
         Ok(Some(ClipboardContent::Image(image)))
     } else {
         debug!("Unsupported clipboard content");

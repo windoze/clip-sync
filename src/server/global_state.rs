@@ -1,10 +1,12 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 use log::{debug, info, warn};
 use tokio::{
     runtime::{Builder, Handle},
     sync::broadcast::Sender,
 };
+
+use crate::ClipboardContent;
 
 use super::{search::Search, ClipboardData, QueryParam, ServerConfig};
 
@@ -15,6 +17,7 @@ pub struct GlobalState {
     search: Search,
     _rt: tokio::runtime::Runtime,
     thread_pool: Handle,
+    image_path: PathBuf,
 }
 
 impl GlobalState {
@@ -37,6 +40,7 @@ impl GlobalState {
             search,
             _rt: rt,
             thread_pool: handle,
+            image_path: args.image_path.clone().unwrap(),
         }
     }
 
@@ -66,23 +70,48 @@ impl GlobalState {
     }
 
     pub async fn add_entry(&self, entry: ClipboardData, store: bool) -> anyhow::Result<()> {
-        debug!("Publishing message: {:?}", entry);
-        self.sender.send(serde_json::to_string(&entry).unwrap())?;
-        let search = self.search.clone();
-        self.thread_pool
-            .spawn_blocking(move || -> anyhow::Result<()> {
-                if store {
-                    debug!("Store clipboard entry {:?}", entry);
-                    match search.add_entry(&entry) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!("Failed to store clipboard entry: {}", e);
+        match entry.entry.data {
+            ClipboardContent::Text(_) => {
+                debug!("Publishing message: {:?}", entry);
+                self.sender.send(serde_json::to_string(&entry).unwrap())?;
+                let search = self.search.clone();
+                self.thread_pool
+                    .spawn_blocking(move || -> anyhow::Result<()> {
+                        if store {
+                            debug!("Store clipboard entry {:?}", entry);
+                            match search.add_entry(&entry) {
+                                Ok(_) => {}
+                                Err(e) => {
+                                    warn!("Failed to store clipboard entry: {}", e);
+                                }
+                            }
                         }
-                    }
+                        Ok(())
+                    })
+                    .await??;
+            }
+            ClipboardContent::Image(img) => {
+                let directory = self.image_path.join(entry.entry.source);
+                if !directory.exists() {
+                    debug!("Creating directory: {:?}", directory);
+                    tokio::fs::create_dir_all(&directory).await?;
                 }
-                Ok(())
-            })
-            .await??;
+                self.thread_pool
+                    .spawn_blocking(move || -> anyhow::Result<()> {
+                        let path = directory.join(format!("{}.png", entry.timestamp));
+                        let file = std::fs::File::create(path)?;
+                        let w = &mut std::io::BufWriter::new(file);
+                        let mut encoder = png::Encoder::new(w, img.width as u32, img.height as u32);
+                        encoder.set_color(png::ColorType::Rgba);
+                        encoder.set_depth(png::BitDepth::Eight);
+                        let mut writer = encoder.write_header()?;
+                        writer.write_image_data(&img.data)?;
+                        writer.finish()?;
+                        Ok(())
+                    })
+                    .await??;
+            }
+        }
         Ok(())
     }
 

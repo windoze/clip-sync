@@ -23,6 +23,7 @@ poem = { version = "1", features = ["websocket", "rustls", "static-files"] }
 tantivy = { version = "0.21" }
 tantivy-jieba = "0.10.0"
 chrono = "0.4"
+png = { version = "0.17" }
 
 rumqttc = { version = "0.23", optional = true }
 arboard = { version = "3", optional = true }
@@ -35,7 +36,6 @@ webbrowser = { version = "0.8", optional = true }
 
 [target.'cfg(target_os="linux")'.dependencies]
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git", features = ["ksni"], optional = true }
-png = { version = "0.17", optional = true }
 
 [target.'cfg(not(target_os="linux"))'.dependencies]
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
@@ -52,7 +52,6 @@ default = [
     "random-string",
     "tokio-tungstenite",
     "tray-item",
-    "png",
     "url",
     "webbrowser",
 ]
