@@ -27,7 +27,7 @@ jobs:
           - build: windows-gnu
             os: windows-latest
             target: x86_64-pc-windows-gnu
-            
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -40,8 +40,8 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            apt-get -y update
-            apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+            sudo apt-get -y update
+            sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
           fi
 
       - name: Install Rust
