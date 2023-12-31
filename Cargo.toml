@@ -31,6 +31,7 @@ gethostname = { version = "0.4", optional = true }
 random-string = { version = "1", optional = true }
 tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-webpki-roots"], optional = true }
 url = { version = "2", optional = true }
+webbrowser = { version = "0.8", optional = true }
 
 [target.'cfg(target_os="linux")'.dependencies]
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git", features = ["ksni"], optional = true }
@@ -53,5 +54,6 @@ default = [
     "tray-item",
     "png",
     "url",
+    "webbrowser",
 ]
 server-only = []

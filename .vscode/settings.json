@@ -17,6 +17,7 @@
     "rumqttc",
     "rustls",
     "tungstenite",
+    "webbrowser",
     "xfixes"
   ]
 }

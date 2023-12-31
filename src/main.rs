@@ -5,6 +5,7 @@ use futures::TryFutureExt;
 use log::info;
 use platform_dirs::AppDirs;
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use std::path::PathBuf;
 
@@ -36,6 +37,29 @@ struct Args {
     pub websocket_client: client::ClientConfig,
 }
 
+impl Args {
+    pub fn get_server_url(&self) -> Option<String> {
+        if self.roles.contains(&"websocket-client".to_string()) {
+            if let Ok(mut url) = Url::parse(&self.websocket_client.server_url) {
+                let scheme = if url.scheme() == "wss" {
+                    "https"
+                } else if url.scheme() == "ws" {
+                    "http"
+                } else {
+                    return None;
+                };
+                url.set_scheme(scheme).unwrap();
+                url.set_path("");
+                Some(url.to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ClipboardData {
     pub source: String,
@@ -47,10 +71,7 @@ fn get_config_file() -> PathBuf {
     app_dirs.config_dir.join("config.toml")
 }
 
-async fn svc_main(config_path: PathBuf) -> anyhow::Result<()> {
-    let config = std::fs::read_to_string(config_path)?;
-    let args = toml::from_str::<Args>(&config)?;
-
+async fn svc_main(args: Args) -> anyhow::Result<()> {
     #[cfg(not(feature = "server-only"))]
     {
         let mut tasks: Vec<tokio::task::JoinHandle<anyhow::Result<()>>> = vec![];
@@ -134,11 +155,16 @@ mod tray {
         }
     }
 
-    pub fn run_tray() -> anyhow::Result<()> {
+    pub fn run_tray(server_url: Option<String>) -> anyhow::Result<()> {
         let mut tray = TrayItem::new("ClipSync", get_app_icon())?;
 
         #[cfg(target_os = "macos")]
         {
+            tray.inner_mut().add_menu_item("Open Portal", move || {
+                if let Some(url) = &server_url {
+                    webbrowser::open(url).ok();
+                }
+            })?;
             tray.inner_mut().add_quit_item("Quit");
             tray.inner_mut().display();
         }
@@ -146,16 +172,26 @@ mod tray {
         #[cfg(any(target_os = "windows", target_os = "linux"))]
         {
             enum Message {
+                Portal,
                 Quit,
             }
             let (tx, rx) = std::sync::mpsc::sync_channel(1);
+            tray.add_menu_item("Open Portal", move || {
+                tx.send(Message::Portal).unwrap();
+            })?;
             tray.add_menu_item("Quit", move || {
                 tx.send(Message::Quit).unwrap();
             })?;
             loop {
-                if matches!(rx.recv()?, Message::Quit) {
-                    log::warn!("Quit");
-                    break;
+                match rx.recv()? {
+                    Message::Portal => {
+                        if let Some(url) = &server_url {
+                            webbrowser::open(url).ok();
+                        }
+                    }
+                    Message::Quit => {
+                        break;
+                    }
                 }
             }
         }
@@ -181,13 +217,17 @@ fn main() -> anyhow::Result<()> {
         .init();
     info!("Starting");
     let config_path = cli.config_path.unwrap_or(get_config_file());
+    let config = std::fs::read_to_string(config_path)?;
+    let args = toml::from_str::<Args>(&config)?;
+    let server_url = args.get_server_url();
+
     let join_handler = std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("Failed to create runtime");
         runtime
-            .block_on(svc_main(config_path))
+            .block_on(svc_main(args))
             .expect("Failed to run service");
     });
 
@@ -203,7 +243,7 @@ fn main() -> anyhow::Result<()> {
             return Ok(());
         }
 
-        tray::run_tray()?;
+        tray::run_tray(server_url)?;
     }
 
     Ok(())
