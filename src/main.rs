@@ -36,8 +36,8 @@ struct Args {
     pub websocket_client: client::ClientConfig,
 }
 
+#[cfg(not(feature = "server-only"))]
 impl Args {
-    #[cfg(not(feature = "server-only"))]
     pub fn get_server_url(&self) -> Option<String> {
         if self.roles.contains(&"websocket-client".to_string()) {
             if let Ok(mut url) = url::Url::parse(&self.websocket_client.server_url) {
@@ -57,11 +57,6 @@ impl Args {
         } else {
             None
         }
-    }
-
-    #[cfg(feature = "server-only")]
-    pub fn get_server_url(&self) -> Option<String> {
-        None
     }
 }
 
@@ -225,6 +220,7 @@ fn main() -> anyhow::Result<()> {
     let config_path = cli.config_path.unwrap_or(get_config_file());
     let config = std::fs::read_to_string(config_path)?;
     let args = toml::from_str::<Args>(&config)?;
+    #[cfg(not(feature = "server-only"))]
     let server_url = args.get_server_url();
 
     let join_handler = std::thread::spawn(move || {
