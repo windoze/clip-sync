@@ -60,10 +60,23 @@ impl Args {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClipboardData {
     pub source: String,
     pub data: String,
+}
+
+#[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub struct ImageData {
+    pub width: u32,
+    pub height: u32,
+    pub data: Vec<u8>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+pub enum ClipboardContent {
+    Text(String),
+    Image(ImageData),
 }
 
 fn get_config_file() -> PathBuf {

@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use clipboard::{ClipboardContext, ClipboardProvider};
+use arboard::Clipboard;
 use clipboard_master::{CallbackResult, ClipboardHandler, Master};
 use futures::Future;
 use log::{debug, warn};
@@ -19,14 +19,14 @@ pub trait ClipboardSink {
     fn publish(&mut self, data: Option<String>) -> impl Future<Output = anyhow::Result<()>>;
 }
 
-pub struct Handler<T: ClipboardProvider> {
+pub struct Handler {
     pub sender: Sender<ClipboardData>,
-    pub provider: T,
+    pub provider: Clipboard,
     pub sender_id: String,
     pub last_text: String,
 }
 
-impl<T: ClipboardProvider> ClipboardHandler for Handler<T> {
+impl ClipboardHandler for Handler {
     fn on_clipboard_change(&mut self) -> CallbackResult {
         debug!("Clipboard change happened!");
         let data = self
@@ -59,7 +59,7 @@ pub async fn start(
     source: impl ClipboardSource,
     sink: impl ClipboardSink,
 ) -> anyhow::Result<()> {
-    let mut provider: ClipboardContext = ClipboardProvider::new().map_err(|e| {
+    let mut provider = Clipboard::new().map_err(|e| {
         anyhow::anyhow!("Failed to initialize clipboard provider: {}", e.to_string())
     })?;
     let last_text = Arc::new(RwLock::new(
@@ -120,7 +120,7 @@ pub async fn clipboard_subscriber(
     client_id: String,
     last_text: Arc<RwLock<String>>,
 ) -> anyhow::Result<()> {
-    let mut provider: ClipboardContext = ClipboardProvider::new().map_err(|e| {
+    let mut provider = Clipboard::new().map_err(|e| {
         anyhow::anyhow!("Failed to initialize clipboard provider: {}", e.to_string())
     })?;
 

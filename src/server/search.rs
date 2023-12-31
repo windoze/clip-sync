@@ -84,8 +84,8 @@ impl Search {
         let mut index_writer = self.index.writer(50_000_000)?;
         index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
         index_writer.add_document(doc!(
-            self.source => entry.source.clone(),
-            self.content => entry.data.clone(),
+            self.source => entry.entry.source.clone(),
+            self.content => entry.entry.data.clone(),
             self.timestamp => entry.timestamp
         ))?;
         index_writer.commit()?;
@@ -210,8 +210,10 @@ impl Search {
                         .and_then(|v| v.as_i64())
                         .unwrap_or_default();
                     ClipboardData {
-                        source: source.to_string(),
-                        data: data.to_string(),
+                        entry: crate::ClipboardData {
+                            source: source.to_string(),
+                            data: data.to_string(),
+                        },
                         timestamp,
                     }
                 })

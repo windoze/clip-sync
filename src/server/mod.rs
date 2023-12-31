@@ -94,8 +94,8 @@ fn default_timestamp() -> i64 {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct ClipboardData {
-    source: String,
-    data: String,
+    #[serde(flatten)]
+    entry: crate::ClipboardData,
     #[serde(default = "default_timestamp")]
     timestamp: i64,
 }
@@ -124,11 +124,11 @@ async fn ws(
                 }
                 if let Message::Text(text) = msg {
                     if let Ok(data) = serde_json::from_str::<ClipboardData>(&text) {
-                        debug!("{}: {}", data.source, data.data);
-                        if name_clone != data.source {
+                        debug!("{}: {}", data.entry.source, data.entry.data);
+                        if name_clone != data.entry.source {
                             warn!(
                                 "Invalid message source '{}' from device '{name_clone}'.",
-                                data.source
+                                data.entry.source
                             );
                             continue;
                         }
