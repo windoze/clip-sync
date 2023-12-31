@@ -34,6 +34,26 @@ pub async fn get_entries(s: String) -> Result<Vec<ClipboardEntry>, reqwest::Erro
 }
 
 #[component]
+pub fn CopyButton(cx: Scope, text: String) -> Element {
+    cx.render(rsx! {
+        a {
+            onclick : move |_| {
+                log::info!("Copying {}", text);
+                let _ = web_sys::window().unwrap().navigator().clipboard().unwrap().write_text(text);
+            },
+            svg {
+                width: "16px",
+                height: "auto",
+                view_box: "0 0 115.77 122.88",
+                path {
+                    d: "M89.62,13.96v7.73h12.19h0.01v0.02c3.85,0.01,7.34,1.57,9.86,4.1c2.5,2.51,4.06,5.98,4.07,9.82h0.02v0.02 v73.27v0.01h-0.02c-0.01,3.84-1.57,7.33-4.1,9.86c-2.51,2.5-5.98,4.06-9.82,4.07v0.02h-0.02h-61.7H40.1v-0.02 c-3.84-0.01-7.34-1.57-9.86-4.1c-2.5-2.51-4.06-5.98-4.07-9.82h-0.02v-0.02V92.51H13.96h-0.01v-0.02c-3.84-0.01-7.34-1.57-9.86-4.1 c-2.5-2.51-4.06-5.98-4.07-9.82H0v-0.02V13.96v-0.01h0.02c0.01-3.85,1.58-7.34,4.1-9.86c2.51-2.5,5.98-4.06,9.82-4.07V0h0.02h61.7 h0.01v0.02c3.85,0.01,7.34,1.57,9.86,4.1c2.5,2.51,4.06,5.98,4.07,9.82h0.02V13.96L89.62,13.96z M79.04,21.69v-7.73v-0.02h0.02 c0-0.91-0.39-1.75-1.01-2.37c-0.61-0.61-1.46-1-2.37-1v0.02h-0.01h-61.7h-0.02v-0.02c-0.91,0-1.75,0.39-2.37,1.01 c-0.61,0.61-1,1.46-1,2.37h0.02v0.01v64.59v0.02h-0.02c0,0.91,0.39,1.75,1.01,2.37c0.61,0.61,1.46,1,2.37,1v-0.02h0.01h12.19V35.65 v-0.01h0.02c0.01-3.85,1.58-7.34,4.1-9.86c2.51-2.5,5.98-4.06,9.82-4.07v-0.02h0.02H79.04L79.04,21.69z M105.18,108.92V35.65v-0.02 h0.02c0-0.91-0.39-1.75-1.01-2.37c-0.61-0.61-1.46-1-2.37-1v0.02h-0.01h-61.7h-0.02v-0.02c-0.91,0-1.75,0.39-2.37,1.01 c-0.61,0.61-1,1.46-1,2.37h0.02v0.01v73.27v0.02h-0.02c0,0.91,0.39,1.75,1.01,2.37c0.61,0.61,1.46,1,2.37,1v-0.02h0.01h61.7h0.02 v0.02c0.91,0,1.75-0.39,2.37-1.01c0.61-0.61,1-1.46,1-2.37h-0.02V108.92L105.18,108.92z"
+                }
+            }
+        }
+    })
+}
+
+#[component]
 fn Entry(cx: Scope, entry: ClipboardEntry) -> Element {
     let ClipboardEntry {
         source,
@@ -53,6 +73,10 @@ fn Entry(cx: Scope, entry: ClipboardEntry) -> Element {
                     pre {
                         class: "my_pre",
                         "{data}"
+                    }
+                    span {
+                        class: "inline-flex items-center px-2 py-1 text-xs font-medium text-gray-600",
+                        CopyButton { text: data.clone() }
                     }
                     span {
                         class: "inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-800 ring-1 ring-inset ring-yellow-600/20",
@@ -82,9 +106,9 @@ pub fn app(cx: Scope) -> Element {
             href: "/style.css"
         }
         div {
-            class: "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8",
+            class: "mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 lg:justify-between",
             div {
-                class: "mx-auto max-w-2xl py-16 sm:py-6 lg:py-7",
+                class: "mx-grid grid-cols-4 gap-4 justify-items-start max-w-md",
                 div {
                     class: "flex h-16 items-center",
                     div {
@@ -96,10 +120,24 @@ pub fn app(cx: Scope) -> Element {
                         }
                     }
                     div {
-                        class: "ml-10 flex items-baseline",
+                        class: "ml-10 flex-grow items-baseline ",
                         h1 {
                             class: "text-4xl font-bold tracking-tight text-gray-900 sm:text-4xl",
-                            "Clip Sync"
+                            "Clip\u{00a0}Sync"
+                        }
+                    }
+                    div {
+                        class: "flex-shrink-0",
+                        a {
+                            class: "text-gray-500 hover:text-gray-700",
+                            href: "https://github.com/windoze/clip-sync",
+                            target: "_blank",
+                            svg {
+                                class: "w-5 h-5",
+                                path {
+                                    d: "M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
+                                } 
+                            }
                         }
                     }
                 }
