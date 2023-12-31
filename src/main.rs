@@ -63,20 +63,29 @@ impl Args {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClipboardData {
     pub source: String,
-    pub data: String,
+    pub data: ClipboardContent,
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct ImageData {
-    pub width: u32,
-    pub height: u32,
+    pub width: usize,
+    pub height: usize,
     pub data: Vec<u8>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ClipboardContent {
     Text(String),
     Image(ImageData),
+}
+
+impl std::fmt::Debug for ClipboardContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ClipboardContent::Text(text) => write!(f, "Text({})", text),
+            ClipboardContent::Image(img) => write!(f, "Image({}x{})", img.width, img.height),
+        }
+    }
 }
 
 fn get_config_file() -> PathBuf {

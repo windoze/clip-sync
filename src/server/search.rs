@@ -15,6 +15,8 @@ use tantivy::{
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
 };
 
+use crate::ClipboardContent;
+
 use super::ClipboardData;
 
 pub struct QueryParam {
@@ -80,15 +82,20 @@ impl Search {
     }
 
     pub fn add_entry(&self, entry: &ClipboardData) -> anyhow::Result<()> {
-        debug!("Adding entry: {:?}", entry);
-        let mut index_writer = self.index.writer(50_000_000)?;
-        index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
-        index_writer.add_document(doc!(
-            self.source => entry.entry.source.clone(),
-            self.content => entry.entry.data.clone(),
-            self.timestamp => entry.timestamp
-        ))?;
-        index_writer.commit()?;
+        debug!("Adding entry: from {}", entry.entry.source);
+        if let ClipboardContent::Text(text) = &entry.entry.data {
+            let mut index_writer = self.index.writer(50_000_000)?;
+            index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
+            index_writer.add_document(doc!(
+                self.source => entry.entry.source.clone(),
+                self.content => text.clone(),
+                self.timestamp => entry.timestamp
+            ))?;
+            index_writer.commit()?;
+        } else {
+            // TODO: Save image to somewhere
+            debug!("Not text, skipping");
+        }
         Ok(())
     }
 
@@ -194,7 +201,7 @@ impl Search {
             .map(|(_, doc_address)| {
                 let doc = searcher.doc(doc_address);
                 doc.map(|d| {
-                    debug!("Found doc: {:?}", d);
+                    debug!("Found doc at {:?}", doc_address);
                     let data = d
                         .get_first(self.content)
                         .and_then(|v| v.as_text())
@@ -212,7 +219,7 @@ impl Search {
                     ClipboardData {
                         entry: crate::ClipboardData {
                             source: source.to_string(),
-                            data: data.to_string(),
+                            data: ClipboardContent::Text(data.to_string()),
                         },
                         timestamp,
                     }

@@ -1,4 +1,4 @@
-# ClipSync
+#  <img src="./icons/app-icon.png" width = "64" height = "64" align=center /> ClipSync
 
 ## Build
 

@@ -38,6 +38,7 @@ pub struct ServerConfig {
     pub cert_path: Option<PathBuf>,
     pub key_path: Option<PathBuf>,
     pub index_path: Option<PathBuf>,
+    pub image_path: Option<PathBuf>,
 }
 
 #[handler]
@@ -124,7 +125,6 @@ async fn ws(
                 }
                 if let Message::Text(text) = msg {
                     if let Ok(data) = serde_json::from_str::<ClipboardData>(&text) {
-                        debug!("{}: {}", data.entry.source, data.entry.data);
                         if name_clone != data.entry.source {
                             warn!(
                                 "Invalid message source '{}' from device '{name_clone}'.",
@@ -287,11 +287,16 @@ fn api(
 
 pub async fn server_main(args: ServerConfig) -> Result<(), std::io::Error> {
     let (sender, _) = channel::<String>(32);
+    let image_path = args.image_path.clone().unwrap_or(PathBuf::from("./images"));
     let global_state = Arc::new(RwLock::new(GlobalState::new(&args, sender)));
     let app = Route::new()
         .nest(
             "/",
             StaticFilesEndpoint::new("./static-files").index_file("index.html"),
+        )
+        .nest(
+            "/images",
+            StaticFilesEndpoint::new(image_path).show_files_listing(),
         )
         .at("/favicon.ico", get(fav_icon))
         .at("/clip-sync/:device_id", get(ws.data(global_state.clone())))
