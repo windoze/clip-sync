@@ -5,7 +5,6 @@ use futures::TryFutureExt;
 use log::info;
 use platform_dirs::AppDirs;
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use std::path::PathBuf;
 
@@ -38,9 +37,10 @@ struct Args {
 }
 
 impl Args {
+    #[cfg(not(feature = "server-only"))]
     pub fn get_server_url(&self) -> Option<String> {
         if self.roles.contains(&"websocket-client".to_string()) {
-            if let Ok(mut url) = Url::parse(&self.websocket_client.server_url) {
+            if let Ok(mut url) = url::Url::parse(&self.websocket_client.server_url) {
                 let scheme = if url.scheme() == "wss" {
                     "https"
                 } else if url.scheme() == "ws" {
@@ -57,6 +57,11 @@ impl Args {
         } else {
             None
         }
+    }
+
+    #[cfg(feature = "server-only")]
+    pub fn get_server_url(&self) -> Option<String> {
+        None
     }
 }
 
