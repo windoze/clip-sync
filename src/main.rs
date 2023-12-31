@@ -176,8 +176,9 @@ mod tray {
                 Quit,
             }
             let (tx, rx) = std::sync::mpsc::sync_channel(1);
+            let tx_clone = tx.clone();
             tray.add_menu_item("Open Portal", move || {
-                tx.send(Message::Portal).unwrap();
+                tx_clone.send(Message::Portal).unwrap();
             })?;
             tray.add_menu_item("Quit", move || {
                 tx.send(Message::Quit).unwrap();
