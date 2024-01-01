@@ -44,6 +44,10 @@ impl GlobalState {
         }
     }
 
+    pub fn get_image_path(&self) -> &PathBuf {
+        &self.image_path
+    }
+
     pub fn get_receiver(&self) -> tokio::sync::broadcast::Receiver<String> {
         self.sender.subscribe()
     }

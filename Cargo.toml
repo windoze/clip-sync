@@ -19,11 +19,12 @@ serde_json = "1"
 toml = "0.8"
 platform-dirs = "0.3"
 futures-util = "0.3"
-poem = { version = "1", features = ["websocket", "rustls", "static-files"] }
+poem = { version = "1", features = ["websocket", "rustls", "static-files", "multipart"] }
 tantivy = { version = "0.21" }
 tantivy-jieba = "0.10.0"
 chrono = "0.4"
 png = { version = "0.17" }
+reqwest = { version = "0.11", features = ["json"] }
 
 rumqttc = { version = "0.23", optional = true }
 arboard = { version = "3", optional = true }

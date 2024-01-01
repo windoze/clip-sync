@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use futures::{stream::SplitStream, Sink, SinkExt, StreamExt};
+use futures_util::stream::SplitSink;
 use gethostname::gethostname;
 use serde::Deserialize;
 use tokio::net::TcpStream;
@@ -9,7 +10,7 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use crate::{clipboard_handler, ClipboardSink, ClipboardSource};
+use crate::{clipboard_handler, ClipboardContent, ClipboardSink, ClipboardSource};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -71,12 +72,67 @@ impl ClipboardSource for SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>
     }
 }
 
+struct WebSocketSink {
+    sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+    upload_url: String,
+}
+
+impl WebSocketSink {
+    pub fn new(
+        sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
+        device_id: &str,
+        server_url: &str,
+    ) -> anyhow::Result<Self> {
+        let mut url = url::Url::parse(server_url).unwrap();
+        if url.scheme() == "ws" {
+            url.set_scheme("http").unwrap();
+        } else if url.scheme() == "wss" {
+            url.set_scheme("https").unwrap();
+        } else {
+            return Err(anyhow::anyhow!("Invalid scheme"));
+        }
+        url.set_path(&format!("/upload-image/{}", device_id));
+        Ok(Self {
+            sink,
+            upload_url: url.into(),
+        })
+    }
+}
+
+impl ClipboardSink for WebSocketSink {
+    async fn publish(&mut self, data: Option<ClipboardContent>) -> anyhow::Result<()> {
+        let data = data.ok_or_else(|| anyhow::anyhow!("No data to publish"))?;
+        let client = reqwest::Client::new();
+        let res = client
+            .post(&self.upload_url)
+            .body(data)
+            .send()
+            .await
+            .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+        if !res.status().is_success() {
+            return Err(anyhow::anyhow!("Upload failed"));
+        }
+        Ok(())
+    }
+
+    async fn publish_raw_string(&mut self, data: Option<String>) -> anyhow::Result<()> {
+        self.sink
+            .send(match data {
+                Some(data) => Message::Text(data),
+                None => Message::Ping(vec![]),
+            })
+            .await
+            .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+        Ok(())
+    }
+}
+
 impl<T> ClipboardSink for T
 where
     T: Sink<Message> + Send + Unpin,
     <T as Sink<Message>>::Error: Debug,
 {
-    async fn publish(&mut self, data: Option<String>) -> anyhow::Result<()> {
+    async fn publish_raw_string(&mut self, data: Option<String>) -> anyhow::Result<()> {
         self.send(match data {
             Some(data) => Message::Text(data),
             None => Message::Ping(vec![]),

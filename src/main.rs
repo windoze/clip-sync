@@ -83,6 +83,7 @@ impl std::fmt::Debug for ImageData {
 pub enum ClipboardContent {
     Text(String),
     Image(ImageData),
+    ImageUrl(String),
 }
 
 impl std::fmt::Debug for ClipboardContent {
@@ -90,6 +91,7 @@ impl std::fmt::Debug for ClipboardContent {
         match self {
             ClipboardContent::Text(text) => write!(f, "Text({})", text),
             ClipboardContent::Image(img) => write!(f, "Image({}x{})", img.width, img.height),
+            ClipboardContent::ImageUrl(url) => write!(f, "ImageUrl({})", url),
         }
     }
 }

@@ -16,7 +16,17 @@ pub trait ClipboardSource {
 }
 
 pub trait ClipboardSink {
-    fn publish(&mut self, data: Option<String>) -> impl Future<Output = anyhow::Result<()>>;
+    fn publish(
+        &mut self,
+        data: Option<ClipboardContent>,
+    ) -> impl Future<Output = anyhow::Result<()>> {
+        self.publish_raw_string(data.map(|d| serde_json::to_string(&d).unwrap()))
+    }
+
+    fn publish_raw_string(
+        &mut self,
+        data: Option<String>,
+    ) -> impl Future<Output = anyhow::Result<()>>;
 }
 
 pub struct Handler {
@@ -97,7 +107,7 @@ pub async fn clipboard_publisher(
                     continue;
                 }
                 let payload = serde_json::to_string(&data).unwrap();
-                sink.publish(Some(payload)).await?;
+                sink.publish_raw_string(Some(payload)).await?;
             }
             Ok(None) => {
                 debug!("Channel closed");
@@ -105,7 +115,7 @@ pub async fn clipboard_publisher(
             }
             Err(_) => {
                 debug!("Sending ping to server");
-                sink.publish(None).await?;
+                sink.publish_raw_string(None).await?;
             }
         }
     }
@@ -207,6 +217,10 @@ fn set_clipboard_content(
                     height: image.height,
                 })
                 .ok();
+        }
+        ClipboardContent::ImageUrl(url) => {
+            // todo: download image and set it to clipboard
+            unimplemented!();
         }
     }
     Ok(())
