@@ -28,7 +28,6 @@ jobs:
         with:
           retention-days: 14
           name: clip-sync-universal-apple-darwin
-          if-no-files-found: ignore
           path: clip-sync
 
   check_n_build_w:
