@@ -5,7 +5,7 @@ name: CI
 
 jobs:
   check_n_build_m:
-    name: Test and Check on macOS
+    name: Check and Build on macOS
     runs-on: macos-latest
 
     steps:
@@ -32,7 +32,7 @@ jobs:
           path: clip-sync
 
   check_n_build_w:
-    name: Test and Check on Windows
+    name: Check and Build on Windows
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
@@ -52,7 +52,7 @@ jobs:
           path: target/release/clip-sync.exe
 
   check_n_build_l:
-    name: Test and Check on Linux
+    name: Check and Build on Linux
     runs-on: ubuntu-latest
 
     steps:
