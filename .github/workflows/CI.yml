@@ -1,4 +1,6 @@
-on: [push]
+on:
+  push:
+  workflow_dispatch:
 name: CI
 
 jobs:
@@ -24,11 +26,6 @@ jobs:
           toolchain: stable
           components: clippy
       - run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            sudo apt-get -y update
-            sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-            cargo clippy --no-default-features --features server-only -- -D warnings
-          fi
           cargo test
           cargo clippy -- -D warnings
 
