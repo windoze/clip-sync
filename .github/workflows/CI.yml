@@ -56,22 +56,20 @@ jobs:
       - run: |
           cargo fmt --check
           cargo clippy --no-default-features --features server-only -- -D warnings
-          cargo build --no-default-features --features server-only --verbose --release
-          mkdir dist
-          cp target/release/clip-sync dist/clip-sync-server
           sudo apt-get -y update
+          sudo apt-get -y install musl-tools musl-dev
+          cargo build --no-default-features --features server-only --verbose --release --target x86_64-unknown-linux-musl
           sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
           cargo test
           cargo clippy -- -D warnings
           cargo build --verbose --release
-          cp target/release/clip-sync dist/clip-sync
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
-          name: clip-sync-server-x86_64-unknown-linux-gnu
-          path: dist/cli-sync-server
+          name: clip-sync-server-x86_64-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/clip-sync
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
-          name: clip-sync-x86_64-unknown-linux-gnu
-          path: dist/cli-sync
+          name: clip-sync-x86_64-linux-gnu
+          path: target/release/clip-sync
