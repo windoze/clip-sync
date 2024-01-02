@@ -1,0 +1,4 @@
+roles = ["server"]
+
+[server]
+endpoint = "0.0.0.0:3000"
