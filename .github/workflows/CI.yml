@@ -4,21 +4,36 @@ on:
 name: CI
 
 jobs:
-  test_and_check_w_n_m:
+  check_n_build_m:
     name: Test and Check on Windows and macOS
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
 
-    strategy:
-      matrix:
-        include:
-          - build: macos-x86_64
-            os: macos-latest
-            target: x86_64-apple-darwin
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - run: |
+          cargo fmt --check
+          cargo test
+          cargo clippy -- -D warnings
+          cargo build --verbose --release
+          rustup target add aarch64-apple-darwin
+          cargo build --verbose --release --target aarch64-apple-darwin
+          cargo build --verbose --release
+          lipo -create -output clip-sync target/release/clip-sync target/aarch64-apple-darwin/release/clip-sync
 
-          - build: windows-msvc
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-universal-apple-darwin
+          if-no-files-found: ignore
+          path: clip-sync
 
+  check_n_build_w:
+    name: Test and Check on Windows
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions-rs/toolchain@v1
@@ -33,17 +48,10 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
-          name: clip-sync-x86_64-apple-darwin
-          if-no-files-found: ignore
-          path: target/release/clip-sync
-      - uses: actions/upload-artifact@v3
-        with:
-          retention-days: 14
           name: clip-sync-x86_64-windows-msvc
-          if-no-files-found: ignore
           path: target/release/clip-sync.exe
 
-  test_and_check_l:
+  check_n_build_l:
     name: Test and Check on Linux
     runs-on: ubuntu-latest
 
