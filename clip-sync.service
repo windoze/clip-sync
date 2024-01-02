@@ -1,0 +1,14 @@
+# Put this file under `/etc/systemd/user` or `~/.config/systemd/user`, and run `systemctl --user enable clip-sync` to enable the service for the current user.
+# You can also run `systemctl --user start clip-sync` to start the service immediately.
+# Please note that this program needs active X session to work, so you must **not** run it as a system service, it must be run as a user service.
+# Alternatively, you can use `clip-sync.desktop` to start the program in the ordinary way.
+ 
+[Unit]
+Description=Start ClipSync
+
+[Service]
+ExecStart=/usr/local/bin/clip-sync
+Restart=on-success
+
+[Install]
+WantedBy=graphical.target
