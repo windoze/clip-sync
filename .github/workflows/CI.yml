@@ -2,17 +2,13 @@ on: [push]
 name: CI
 
 jobs:
-  test_and_check:
-    name: Test and Check
+  test_and_check_w_n_m:
+    name: Test and Check on Windows and macOS
     runs-on: ${{ matrix.os }}
 
     strategy:
       matrix:
         include:
-          - build: linux
-            os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-
           - build: macos-x86_64
             os: macos-latest
             target: x86_64-apple-darwin
@@ -33,5 +29,22 @@ jobs:
             sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
             cargo clippy --no-default-features --features server-only -- -D warnings
           fi
+          cargo test
+          cargo clippy -- -D warnings
+
+  test_and_check_l:
+    name: Test and Check on Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: clippy
+      - run: |
+          cargo clippy --no-default-features --features server-only -- -D warnings
+          sudo apt-get -y update
+          sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
           cargo test
           cargo clippy -- -D warnings
