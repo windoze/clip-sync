@@ -183,6 +183,7 @@ mod tray {
             tray.add_menu_item("Quit", move || {
                 tx.send(Message::Quit).unwrap();
             })?;
+            #[allow(clippy::while_let_loop)] // In case we want to add more menu items
             loop {
                 match rx.recv()? {
                     Message::Portal => {
