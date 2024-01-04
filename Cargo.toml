@@ -57,3 +57,6 @@ default = [
     "webbrowser",
 ]
 server-only = []
+
+[target.'cfg(target_env="musl")'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
