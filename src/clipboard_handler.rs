@@ -34,7 +34,7 @@ impl ClipboardHandler for Handler {
                 let mut guard = self.last_set_content.lock().unwrap();
                 if *guard == content {
                     debug!("Skipping clipboard update from self");
-                    guard.clear();
+                    *guard = content;
                     return CallbackResult::Next;
                 }
             }
