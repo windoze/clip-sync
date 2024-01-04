@@ -6,12 +6,10 @@ use tokio::{
     sync::broadcast::Sender,
 };
 
-use crate::ClipboardContent;
-
-use super::{search::Search, ClipboardData, QueryParam, ServerConfig};
+use super::{search::Search, ClipboardMessage, QueryParam, ServerClipboardContent, ServerConfig};
 
 pub struct GlobalState {
-    sender: Sender<String>,
+    sender: Sender<ClipboardMessage>,
     device_list: HashSet<String>,
     online_device_list: HashSet<String>,
     search: Search,
@@ -21,7 +19,7 @@ pub struct GlobalState {
 }
 
 impl GlobalState {
-    pub fn new(args: &ServerConfig, sender: Sender<String>) -> Self {
+    pub fn new(args: &ServerConfig, sender: Sender<ClipboardMessage>) -> Self {
         let rt = Builder::new_multi_thread()
             .worker_threads(4)
             .thread_name("search-pool")
@@ -48,7 +46,7 @@ impl GlobalState {
         &self.image_path
     }
 
-    pub fn get_receiver(&self) -> tokio::sync::broadcast::Receiver<String> {
+    pub fn get_receiver(&self) -> tokio::sync::broadcast::Receiver<ClipboardMessage> {
         self.sender.subscribe()
     }
 
@@ -73,56 +71,35 @@ impl GlobalState {
         self.online_device_list.iter().cloned().collect()
     }
 
-    pub async fn add_entry(&self, entry: ClipboardData, store: bool) -> anyhow::Result<()> {
-        match entry.entry.data {
-            ClipboardContent::Text(_) => {
-                debug!("Publishing message: {:?}", entry);
-                self.sender.send(serde_json::to_string(&entry).unwrap())?;
-                let search = self.search.clone();
-                self.thread_pool
-                    .spawn_blocking(move || -> anyhow::Result<()> {
-                        if store {
-                            debug!("Store clipboard entry {:?}", entry);
-                            match search.add_entry(&entry) {
-                                Ok(_) => {}
-                                Err(e) => {
-                                    warn!("Failed to store clipboard entry: {}", e);
-                                }
+    pub async fn add_entry(&self, msg: ClipboardMessage, store: bool) -> anyhow::Result<()> {
+        debug!("Publishing message: {:?}", msg);
+        self.sender.send(msg.clone())?;
+        if matches!(msg.entry.content, ServerClipboardContent::Text(_)) {
+            let search = self.search.clone();
+            self.thread_pool
+                .spawn_blocking(move || -> anyhow::Result<()> {
+                    if store {
+                        debug!("Store clipboard entry {:?}", msg);
+                        match search.add_entry(&msg) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                warn!("Failed to store clipboard entry: {}", e);
                             }
                         }
-                        Ok(())
-                    })
-                    .await??;
-            }
-            ClipboardContent::Image(img) => {
-                let directory = self.image_path.join(entry.entry.source);
-                if !directory.exists() {
-                    debug!("Creating directory: {:?}", directory);
-                    tokio::fs::create_dir_all(&directory).await?;
-                }
-                self.thread_pool
-                    .spawn_blocking(move || -> anyhow::Result<()> {
-                        let path = directory.join(format!("{}.png", entry.timestamp));
-                        let file = std::fs::File::create(path)?;
-                        let w = &mut std::io::BufWriter::new(file);
-                        let mut encoder = png::Encoder::new(w, img.width as u32, img.height as u32);
-                        encoder.set_color(png::ColorType::Rgba);
-                        encoder.set_depth(png::BitDepth::Eight);
-                        let mut writer = encoder.write_header()?;
-                        writer.write_image_data(&img.data)?;
-                        writer.finish()?;
-                        Ok(())
-                    })
-                    .await??;
-            }
+                    }
+                    Ok(())
+                })
+                .await??;
         }
         Ok(())
     }
 
-    pub async fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardData>> {
+    pub async fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardMessage>> {
         let search = self.search.clone();
         self.thread_pool
-            .spawn_blocking(move || -> anyhow::Result<Vec<ClipboardData>> { search.query(param) })
+            .spawn_blocking(move || -> anyhow::Result<Vec<ClipboardMessage>> {
+                search.query(param)
+            })
             .await?
     }
 }

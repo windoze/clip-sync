@@ -63,7 +63,7 @@ impl Args {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClipboardData {
     pub source: String,
-    pub data: ClipboardContent,
+    pub content: ClipboardContent,
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -71,6 +71,36 @@ pub struct ImageData {
     pub width: usize,
     pub height: usize,
     pub data: Vec<u8>,
+}
+
+impl ImageData {
+    pub fn from_png(bytes: &[u8]) -> anyhow::Result<Self> {
+        let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
+        let mut reader = decoder.read_info().expect("Failed to decode icon");
+        let info = reader.info();
+        let mut buf = vec![0; info.raw_bytes()];
+        let output_info = reader
+            .next_frame(buf.as_mut_slice())
+            .expect("Failed to decode icon");
+        output_info.buffer_size();
+
+        Ok(Self {
+            width: output_info.width as usize,
+            height: output_info.height as usize,
+            data: buf[0..output_info.buffer_size()].to_vec(),
+        })
+    }
+
+    pub fn to_png(&self) -> anyhow::Result<Vec<u8>> {
+        let mut buf = vec![];
+        let mut encoder = png::Encoder::new(&mut buf, self.width as u32, self.height as u32);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header()?;
+        writer.write_image_data(&self.data)?;
+        writer.finish()?;
+        Ok(buf)
+    }
 }
 
 impl std::fmt::Debug for ImageData {
@@ -83,7 +113,19 @@ impl std::fmt::Debug for ImageData {
 pub enum ClipboardContent {
     Text(String),
     Image(ImageData),
-    ImageUrl(String),
+}
+
+impl ClipboardContent {
+    pub fn clear(&mut self) {
+        *self = ClipboardContent::Text("".to_string());
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            ClipboardContent::Text(text) => text.is_empty(),
+            ClipboardContent::Image(img) => img.data.is_empty(),
+        }
+    }
 }
 
 impl std::fmt::Debug for ClipboardContent {
@@ -91,7 +133,6 @@ impl std::fmt::Debug for ClipboardContent {
         match self {
             ClipboardContent::Text(text) => write!(f, "Text({})", text),
             ClipboardContent::Image(img) => write!(f, "Image({}x{})", img.width, img.height),
-            ClipboardContent::ImageUrl(url) => write!(f, "ImageUrl({})", url),
         }
     }
 }

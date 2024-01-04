@@ -3,7 +3,7 @@ use log::{debug, warn};
 use rumqttc::{AsyncClient, EventLoop, MqttOptions, QoS};
 use serde::Deserialize;
 
-use crate::{clipboard_handler, ClipboardSink, ClipboardSource};
+use crate::{clipboard_handler, ClipboardData, ClipboardSink, ClipboardSource};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -18,21 +18,29 @@ pub struct MqttClientConfig {
 
 struct MqttSubscriber {
     eventloop: EventLoop,
+    device_id: String,
 }
 
 impl MqttSubscriber {
-    pub fn new(eventloop: EventLoop) -> Self {
-        Self { eventloop }
+    pub fn new(eventloop: EventLoop, device_id: String) -> Self {
+        Self {
+            eventloop,
+            device_id,
+        }
     }
 }
 
 impl ClipboardSource for MqttSubscriber {
-    async fn poll(&mut self) -> anyhow::Result<String> {
+    async fn poll(&mut self) -> anyhow::Result<ClipboardData> {
         loop {
             match self.eventloop.poll().await {
                 Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(p))) => {
-                    debug!("Received = {:?}", p);
-                    return Ok(String::from_utf8(p.payload.as_ref().to_vec())?);
+                    let data: ClipboardData = serde_json::from_slice(&p.payload)?;
+                    if data.source == self.device_id {
+                        debug!("Skipping clipboard update from self");
+                        continue;
+                    }
+                    return Ok(data);
                 }
                 Ok(_) => {
                     // Other events are ignored
@@ -59,8 +67,8 @@ impl MqttPublisher {
 }
 
 impl ClipboardSink for MqttPublisher {
-    async fn publish_raw_string(&mut self, data: Option<String>) -> anyhow::Result<()> {
-        if let Some(data) = data {
+    async fn publish(&mut self, data: Option<ClipboardData>) -> anyhow::Result<()> {
+        if let Some(data) = data.map(|d| serde_json::to_string(&d).unwrap()) {
             self.client
                 .publish(self.topic.clone(), QoS::AtLeastOnce, false, data)
                 .await
@@ -94,6 +102,6 @@ pub async fn clip_sync_svc(args: MqttClientConfig) -> anyhow::Result<()> {
     client.subscribe(topic.clone(), QoS::AtLeastOnce).await?;
 
     let sink = MqttPublisher::new(client.clone(), topic.clone());
-    let source = MqttSubscriber::new(eventloop);
+    let source = MqttSubscriber::new(eventloop, sender_id.clone());
     clipboard_handler::start(sender_id, source, sink).await
 }

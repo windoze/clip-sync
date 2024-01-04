@@ -15,9 +15,9 @@ use tantivy::{
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
 };
 
-use crate::ClipboardContent;
+use crate::server::{ServerClipboardContent, ServerClipboardData};
 
-use super::ClipboardData;
+use super::ClipboardMessage;
 
 pub struct QueryParam {
     pub query: Option<String>,
@@ -81,9 +81,9 @@ impl Search {
         }
     }
 
-    pub fn add_entry(&self, entry: &ClipboardData) -> anyhow::Result<()> {
+    pub fn add_entry(&self, entry: &ClipboardMessage) -> anyhow::Result<()> {
         debug!("Adding entry: from {}", entry.entry.source);
-        if let ClipboardContent::Text(text) = &entry.entry.data {
+        if let ServerClipboardContent::Text(text) = &entry.entry.content {
             let mut index_writer = self.index.writer(50_000_000)?;
             index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
             index_writer.add_document(doc!(
@@ -120,7 +120,7 @@ impl Search {
         Ok(device_list)
     }
 
-    pub fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardData>> {
+    pub fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardMessage>> {
         let searcher = self.reader.searcher();
 
         let content_q: Box<dyn Query> = match param.query {
@@ -216,10 +216,10 @@ impl Search {
                         .get_first(self.timestamp)
                         .and_then(|v| v.as_i64())
                         .unwrap_or_default();
-                    ClipboardData {
-                        entry: crate::ClipboardData {
+                    ClipboardMessage {
+                        entry: ServerClipboardData {
                             source: source.to_string(),
-                            data: ClipboardContent::Text(data.to_string()),
+                            content: ServerClipboardContent::Text(data.to_string()),
                         },
                         timestamp,
                     }

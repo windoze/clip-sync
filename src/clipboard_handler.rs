@@ -1,5 +1,5 @@
 use std::{
-    sync::{Arc, RwLock},
+    sync::{Arc, Mutex},
     time::Duration,
 };
 
@@ -12,44 +12,36 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use crate::{ClipboardContent, ClipboardData, ImageData};
 
 pub trait ClipboardSource {
-    fn poll(&mut self) -> impl Future<Output = anyhow::Result<String>>;
+    fn poll(&mut self) -> impl Future<Output = anyhow::Result<ClipboardData>>;
 }
 
 pub trait ClipboardSink {
-    fn publish(
-        &mut self,
-        data: Option<ClipboardContent>,
-    ) -> impl Future<Output = anyhow::Result<()>> {
-        self.publish_raw_string(data.map(|d| serde_json::to_string(&d).unwrap()))
-    }
-
-    fn publish_raw_string(
-        &mut self,
-        data: Option<String>,
-    ) -> impl Future<Output = anyhow::Result<()>>;
+    fn publish(&mut self, data: Option<ClipboardData>) -> impl Future<Output = anyhow::Result<()>>;
 }
 
 pub struct Handler {
     pub sender: Sender<ClipboardData>,
     pub provider: Clipboard,
     pub sender_id: String,
-    pub last_text: ClipboardContent,
+    pub last_set_content: Arc<Mutex<ClipboardContent>>,
 }
 
 impl ClipboardHandler for Handler {
     fn on_clipboard_change(&mut self) -> CallbackResult {
         debug!("Clipboard change happened!");
-        if let Ok(Some(data)) = get_clipboard_content(&mut self.provider) {
+        if let Ok(Some(content)) = get_clipboard_content(&mut self.provider) {
+            {
+                let mut guard = self.last_set_content.lock().unwrap();
+                if *guard == content {
+                    debug!("Skipping clipboard update from self");
+                    guard.clear();
+                    return CallbackResult::Next;
+                }
+            }
             let data = ClipboardData {
                 source: self.sender_id.clone(),
-                data,
+                content,
             };
-            if data.data == self.last_text {
-                debug!("Skipping clipboard update from self");
-                return CallbackResult::Next;
-            } else {
-                self.last_text = data.data.clone();
-            }
             self.sender.blocking_send(data).ok();
         }
         CallbackResult::Next
@@ -66,23 +58,22 @@ pub async fn start(
     source: impl ClipboardSource,
     sink: impl ClipboardSink,
 ) -> anyhow::Result<()> {
-    let mut provider = Clipboard::new().map_err(|e| {
+    let last_set_content: Arc<Mutex<ClipboardContent>> =
+        Arc::new(Mutex::new(ClipboardContent::Text("".to_string())));
+
+    let provider = Clipboard::new().map_err(|e| {
         anyhow::anyhow!("Failed to initialize clipboard provider: {}", e.to_string())
     })?;
-    let last_text = Arc::new(RwLock::new(
-        get_clipboard_content(&mut provider)?.unwrap_or(ClipboardContent::Text("".to_string())),
-    ));
-
     let (sender, receiver) = tokio::sync::mpsc::channel(10);
 
-    let publisher_task = clipboard_publisher(sink, receiver, last_text.clone());
-    let subscriber_task = clipboard_subscriber(source, sender_id.clone(), last_text.clone());
+    let publisher_task = clipboard_publisher(sink, receiver);
+    let subscriber_task = clipboard_subscriber(source, sender_id.clone(), last_set_content.clone());
 
     let handler = Handler {
         sender,
         provider,
-        sender_id,
-        last_text: ClipboardContent::Text("".to_string()),
+        sender_id: sender_id.clone(),
+        last_set_content,
     };
 
     std::thread::spawn(move || {
@@ -94,20 +85,15 @@ pub async fn start(
     Ok(())
 }
 
-pub async fn clipboard_publisher(
+/// Publish the clipboard content to the sink if it's changed.
+async fn clipboard_publisher(
     mut sink: impl ClipboardSink,
     mut receiver: Receiver<ClipboardData>,
-    last_text: Arc<RwLock<ClipboardContent>>,
 ) -> anyhow::Result<()> {
     loop {
         match tokio::time::timeout(Duration::from_secs(5), receiver.recv()).await {
             Ok(Some(data)) => {
-                if data.data == *last_text.read().unwrap() {
-                    debug!("Skipping clipboard update from self");
-                    continue;
-                }
-                let payload = serde_json::to_string(&data).unwrap();
-                sink.publish_raw_string(Some(payload)).await?;
+                sink.publish(Some(data)).await?;
             }
             Ok(None) => {
                 debug!("Channel closed");
@@ -115,37 +101,43 @@ pub async fn clipboard_publisher(
             }
             Err(_) => {
                 debug!("Sending ping to server");
-                sink.publish_raw_string(None).await?;
+                sink.publish(None).await?;
             }
         }
     }
-    Ok(())
+    Err(anyhow::anyhow!("Publisher source channel closed"))
 }
 
-pub async fn clipboard_subscriber(
+/// Poll the clipboard content from the source and set it to the system clipboard.
+async fn clipboard_subscriber(
     mut source: impl ClipboardSource,
     client_id: String,
-    last_text: Arc<RwLock<ClipboardContent>>,
+    last_set_content: Arc<Mutex<ClipboardContent>>,
 ) -> anyhow::Result<()> {
-    let mut provider = Clipboard::new().map_err(|e| {
-        anyhow::anyhow!("Failed to initialize clipboard provider: {}", e.to_string())
-    })?;
-
     loop {
-        let payload = source.poll().await?;
-        debug!("Received some payload");
-        if let Ok(content) = serde_json::from_slice::<ClipboardData>(payload.as_bytes()) {
-            debug!("Clipboard data = {:?}", content);
-            if content.source == client_id {
-                debug!("Skipping clipboard update from self");
+        if let Ok(clipboard_data) = source.poll().await {
+            debug!("Clipboard data = {:?}", clipboard_data);
+            if clipboard_data.source == client_id {
+                debug!("Skipping clipboard update message sent by self");
                 continue;
             }
-            *last_text.write().unwrap() = content.data.clone();
-            // HACK: Texts on Windows and macOS have different line endings, setting clipboard does auto-conversion and this caused the clipboard to be updated endlessly on both sides.
-            // provider.set_text(content.data.replace("\r\n", "\n")).ok();
-            set_clipboard_content(&mut provider, content.data).ok();
+            Clipboard::new()
+                .map_err(|e| {
+                    anyhow::anyhow!("Failed to initialize clipboard provider: {}", e.to_string())
+                })
+                .and_then(|mut provider| {
+                    set_clipboard_content(&mut provider, clipboard_data.content.clone()).map(
+                        |changed| {
+                            if changed {
+                                *last_set_content.lock().unwrap() = clipboard_data.content;
+                            }
+                        },
+                    )
+                })
+                .ok();
         } else {
-            warn!("Failed to deserialize clipboard data");
+            warn!("Failed to receive clipboard data");
+            return Err(anyhow::anyhow!("Failed to receive clipboard data"));
         }
     }
 }
@@ -156,6 +148,7 @@ fn get_clipboard_text(provider: &mut Clipboard) -> anyhow::Result<Option<String>
             if text.is_empty() {
                 Ok(None)
             } else {
+                // HACK: Windows and macOS/Linux have different line endings.
                 Ok(Some(text.replace("\r\n", "\n")))
             }
         }
@@ -204,24 +197,22 @@ fn get_clipboard_content(provider: &mut Clipboard) -> anyhow::Result<Option<Clip
 fn set_clipboard_content(
     provider: &mut Clipboard,
     content: ClipboardContent,
-) -> anyhow::Result<()> {
-    match content {
-        ClipboardContent::Text(text) => {
-            provider.set_text(text.replace("\r\n", "\n")).ok();
-        }
-        ClipboardContent::Image(image) => {
-            provider
-                .set_image(arboard::ImageData {
-                    bytes: image.data.into(),
-                    width: image.width,
-                    height: image.height,
-                })
-                .ok();
-        }
-        ClipboardContent::ImageUrl(url) => {
-            // todo: download image and set it to clipboard
-            unimplemented!();
+) -> anyhow::Result<bool> {
+    let existing = get_clipboard_content(provider)?;
+    if let Some(existing) = existing {
+        if existing == content {
+            debug!("Clipboard content unchanged, skipping");
+            return Ok(false);
         }
     }
-    Ok(())
+    match content {
+        // HACK: Windows and macOS/Linux have different line endings.
+        ClipboardContent::Text(text) => provider.set_text(text.replace("\r\n", "\n")),
+        ClipboardContent::Image(image) => provider.set_image(arboard::ImageData {
+            bytes: image.data.into(),
+            width: image.width,
+            height: image.height,
+        }),
+    }?;
+    Ok(true)
 }
