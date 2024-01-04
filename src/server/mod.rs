@@ -10,10 +10,11 @@ use poem::{
     http::StatusCode,
     listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener},
     middleware::Cors,
+    post,
     web::{
         headers::{HeaderMapExt, Range},
         websocket::{Message, WebSocket},
-        Data, Html, Json, Path, StaticFileResponse,
+        Data, Html, Json, Multipart, Path, StaticFileResponse,
     },
     Body, EndpointExt, IntoResponse, Request, Route, Server,
 };
@@ -38,6 +39,7 @@ pub struct ServerConfig {
     pub cert_path: Option<PathBuf>,
     pub key_path: Option<PathBuf>,
     pub index_path: Option<PathBuf>,
+    pub image_path: Option<PathBuf>,
 }
 
 #[handler]
@@ -93,11 +95,23 @@ fn default_timestamp() -> i64 {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct ClipboardData {
-    source: String,
-    data: String,
+struct ClipboardMessage {
+    #[serde(flatten)]
+    entry: ServerClipboardData,
     #[serde(default = "default_timestamp")]
     timestamp: i64,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServerClipboardData {
+    pub source: String,
+    pub content: ServerClipboardContent,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ServerClipboardContent {
+    Text(String),
+    ImageUrl(String),
 }
 
 #[handler]
@@ -123,12 +137,11 @@ async fn ws(
                     continue;
                 }
                 if let Message::Text(text) = msg {
-                    if let Ok(data) = serde_json::from_str::<ClipboardData>(&text) {
-                        debug!("{}: {}", data.source, data.data);
-                        if name_clone != data.source {
+                    if let Ok(data) = serde_json::from_str::<ClipboardMessage>(&text) {
+                        if name_clone != data.entry.source {
                             warn!(
                                 "Invalid message source '{}' from device '{name_clone}'.",
-                                data.source
+                                data.entry.source
                             );
                             continue;
                         }
@@ -155,7 +168,15 @@ async fn ws(
             loop {
                 match tokio::time::timeout(Duration::from_secs(5), receiver.recv()).await {
                     Ok(Ok(msg)) => {
-                        if sink.send(Message::Text(msg)).await.is_err() {
+                        if msg.entry.source == name {
+                            debug!("Skipping sending message to the source device '{}'.", &name);
+                            continue;
+                        }
+                        if sink
+                            .send(Message::Text(serde_json::to_string(&msg).unwrap()))
+                            .await
+                            .is_err()
+                        {
                             warn!("Failed to send message to device '{}'.", &name);
                             break;
                         }
@@ -250,7 +271,7 @@ impl From<Params> for QueryParam {
 async fn query(
     req: &Request,
     data: Data<&Arc<RwLock<GlobalState>>>,
-) -> poem::Result<Json<Vec<ClipboardData>>> {
+) -> poem::Result<Json<Vec<ClipboardMessage>>> {
     let params = req.params::<Params>()?;
     debug!("Query: {:?}", params);
     let global_state = data.0.clone();
@@ -285,13 +306,75 @@ fn api(
         .with(auth::ApiKeyAuth::new(args.secret))
 }
 
-pub async fn server_main(args: ServerConfig) -> Result<(), std::io::Error> {
-    let (sender, _) = channel::<String>(32);
+#[handler]
+async fn upload_image(
+    Path(name): Path<String>,
+    mut multipart: Multipart,
+    data: Data<&Arc<RwLock<GlobalState>>>,
+) -> poem::Result<String> {
+    if let Ok(Some(field)) = multipart.next_field().await {
+        if field.content_type().unwrap_or("") != "image/png" {
+            return Err(poem::Error::from_status(StatusCode::BAD_REQUEST));
+        }
+        let timestamp = Utc::now().format("%Y-%m-%d-%H-%M-%S-%6f");
+        let dir: PathBuf = data.0.read().await.get_image_path().join(&name);
+        tokio::fs::create_dir_all(&dir).await.map_err(|e| {
+            warn!("Failed to create directory: {}", e);
+            poem::Error::from_status(StatusCode::INTERNAL_SERVER_ERROR)
+        })?;
+        let mut suffix = 1usize;
+        loop {
+            let filename = format!("{}-{}.png", timestamp, suffix);
+            let path: PathBuf = dir.join(&filename);
+            if path.exists() {
+                suffix += 1;
+                continue;
+            }
+            break;
+        }
+        let filename = format!("{}-{}.png", timestamp, suffix);
+        let filepath: PathBuf = dir.join(&filename);
+        let part_name = field.name().map(ToString::to_string);
+        let file_name = field.file_name().map(ToString::to_string);
+        if let Ok(bytes) = field.bytes().await {
+            println!(
+                "name={:?} filename={:?} length={}, save={:?}",
+                part_name,
+                file_name,
+                bytes.len(),
+                filepath,
+            );
+            tokio::fs::write(&filepath, bytes).await.map_err(|e| {
+                warn!("Failed to write file: {}", e);
+                poem::Error::from_status(StatusCode::INTERNAL_SERVER_ERROR)
+            })?;
+            debug!("Image saved to {:?}", filepath);
+        }
+        return Ok(format!("{name}/{}", filename));
+    }
+    warn!("No image data received.");
+    Err(poem::Error::from_status(StatusCode::BAD_REQUEST))
+}
+
+pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
+    let (sender, _) = channel::<ClipboardMessage>(32);
+    if args.image_path.is_none() {
+        args.image_path = Some(PathBuf::from("./images"));
+    }
+    let image_path = args.image_path.clone().unwrap();
     let global_state = Arc::new(RwLock::new(GlobalState::new(&args, sender)));
     let app = Route::new()
         .nest(
             "/",
             StaticFilesEndpoint::new("./static-files").index_file("index.html"),
+        )
+        .nest(
+            "/images",
+            StaticFilesEndpoint::new(image_path).show_files_listing(),
+        )
+        .at(
+            "/upload-image/:device_id",
+            post(upload_image.data(global_state.clone())),
         )
         .at("/favicon.ico", get(fav_icon))
         .at("/clip-sync/:device_id", get(ws.data(global_state.clone())))

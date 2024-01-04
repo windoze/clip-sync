@@ -1,7 +1,7 @@
 on:
   push:
     branches:
-      -  '**'  
+      - "**"
   pull_request:
     branches:
       - main
@@ -69,7 +69,7 @@ jobs:
           cargo fmt --check
           cargo clippy --no-default-features --features server-only -- -D warnings
           sudo apt-get -y update
-          sudo apt-get -y install musl-tools musl-dev
+          sudo apt-get -y install musl-tools musl-dev perl
           rustup target add x86_64-unknown-linux-musl
           cargo build --no-default-features --features server-only --verbose --release --target x86_64-unknown-linux-musl
           sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev

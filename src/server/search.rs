@@ -15,7 +15,9 @@ use tantivy::{
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
 };
 
-use super::ClipboardData;
+use crate::server::{ServerClipboardContent, ServerClipboardData};
+
+use super::ClipboardMessage;
 
 pub struct QueryParam {
     pub query: Option<String>,
@@ -79,16 +81,21 @@ impl Search {
         }
     }
 
-    pub fn add_entry(&self, entry: &ClipboardData) -> anyhow::Result<()> {
-        debug!("Adding entry: {:?}", entry);
-        let mut index_writer = self.index.writer(50_000_000)?;
-        index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
-        index_writer.add_document(doc!(
-            self.source => entry.source.clone(),
-            self.content => entry.data.clone(),
-            self.timestamp => entry.timestamp
-        ))?;
-        index_writer.commit()?;
+    pub fn add_entry(&self, entry: &ClipboardMessage) -> anyhow::Result<()> {
+        debug!("Adding entry: from {}", entry.entry.source);
+        if let ServerClipboardContent::Text(text) = &entry.entry.content {
+            let mut index_writer = self.index.writer(50_000_000)?;
+            index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
+            index_writer.add_document(doc!(
+                self.source => entry.entry.source.clone(),
+                self.content => text.clone(),
+                self.timestamp => entry.timestamp
+            ))?;
+            index_writer.commit()?;
+        } else {
+            // TODO: Save image to somewhere
+            debug!("Not text, skipping");
+        }
         Ok(())
     }
 
@@ -113,7 +120,7 @@ impl Search {
         Ok(device_list)
     }
 
-    pub fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardData>> {
+    pub fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardMessage>> {
         let searcher = self.reader.searcher();
 
         let content_q: Box<dyn Query> = match param.query {
@@ -194,7 +201,7 @@ impl Search {
             .map(|(_, doc_address)| {
                 let doc = searcher.doc(doc_address);
                 doc.map(|d| {
-                    debug!("Found doc: {:?}", d);
+                    debug!("Found doc at {:?}", doc_address);
                     let data = d
                         .get_first(self.content)
                         .and_then(|v| v.as_text())
@@ -209,9 +216,11 @@ impl Search {
                         .get_first(self.timestamp)
                         .and_then(|v| v.as_i64())
                         .unwrap_or_default();
-                    ClipboardData {
-                        source: source.to_string(),
-                        data: data.to_string(),
+                    ClipboardMessage {
+                        entry: ServerClipboardData {
+                            source: source.to_string(),
+                            content: ServerClipboardContent::Text(data.to_string()),
+                        },
                         timestamp,
                     }
                 })

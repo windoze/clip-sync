@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, path::PathBuf};
 
 use log::{debug, info, warn};
 use tokio::{
@@ -6,19 +6,20 @@ use tokio::{
     sync::broadcast::Sender,
 };
 
-use super::{search::Search, ClipboardData, QueryParam, ServerConfig};
+use super::{search::Search, ClipboardMessage, QueryParam, ServerClipboardContent, ServerConfig};
 
 pub struct GlobalState {
-    sender: Sender<String>,
+    sender: Sender<ClipboardMessage>,
     device_list: HashSet<String>,
     online_device_list: HashSet<String>,
     search: Search,
     _rt: tokio::runtime::Runtime,
     thread_pool: Handle,
+    image_path: PathBuf,
 }
 
 impl GlobalState {
-    pub fn new(args: &ServerConfig, sender: Sender<String>) -> Self {
+    pub fn new(args: &ServerConfig, sender: Sender<ClipboardMessage>) -> Self {
         let rt = Builder::new_multi_thread()
             .worker_threads(4)
             .thread_name("search-pool")
@@ -37,10 +38,15 @@ impl GlobalState {
             search,
             _rt: rt,
             thread_pool: handle,
+            image_path: args.image_path.clone().unwrap(),
         }
     }
 
-    pub fn get_receiver(&self) -> tokio::sync::broadcast::Receiver<String> {
+    pub fn get_image_path(&self) -> &PathBuf {
+        &self.image_path
+    }
+
+    pub fn get_receiver(&self) -> tokio::sync::broadcast::Receiver<ClipboardMessage> {
         self.sender.subscribe()
     }
 
@@ -65,31 +71,35 @@ impl GlobalState {
         self.online_device_list.iter().cloned().collect()
     }
 
-    pub async fn add_entry(&self, entry: ClipboardData, store: bool) -> anyhow::Result<()> {
-        debug!("Publishing message: {:?}", entry);
-        self.sender.send(serde_json::to_string(&entry).unwrap())?;
-        let search = self.search.clone();
-        self.thread_pool
-            .spawn_blocking(move || -> anyhow::Result<()> {
-                if store {
-                    debug!("Store clipboard entry {:?}", entry);
-                    match search.add_entry(&entry) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!("Failed to store clipboard entry: {}", e);
+    pub async fn add_entry(&self, msg: ClipboardMessage, store: bool) -> anyhow::Result<()> {
+        debug!("Publishing message: {:?}", msg);
+        self.sender.send(msg.clone())?;
+        if matches!(msg.entry.content, ServerClipboardContent::Text(_)) {
+            let search = self.search.clone();
+            self.thread_pool
+                .spawn_blocking(move || -> anyhow::Result<()> {
+                    if store {
+                        debug!("Store clipboard entry {:?}", msg);
+                        match search.add_entry(&msg) {
+                            Ok(_) => {}
+                            Err(e) => {
+                                warn!("Failed to store clipboard entry: {}", e);
+                            }
                         }
                     }
-                }
-                Ok(())
-            })
-            .await??;
+                    Ok(())
+                })
+                .await??;
+        }
         Ok(())
     }
 
-    pub async fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardData>> {
+    pub async fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardMessage>> {
         let search = self.search.clone();
         self.thread_pool
-            .spawn_blocking(move || -> anyhow::Result<Vec<ClipboardData>> { search.query(param) })
+            .spawn_blocking(move || -> anyhow::Result<Vec<ClipboardMessage>> {
+                search.query(param)
+            })
             .await?
     }
 }
