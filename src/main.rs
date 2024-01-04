@@ -213,6 +213,7 @@ mod tray {
             tray.add_menu_item("Quit", move || {
                 tx.send(Message::Quit).unwrap();
             })?;
+            #[allow(clippy::while_let_loop)] // In case we want to add more menu items
             loop {
                 match rx.recv()? {
                     Message::Portal => {
@@ -248,7 +249,8 @@ fn main() -> anyhow::Result<()> {
         .init();
     info!("Starting");
     let config_path = cli.config_path.unwrap_or(get_config_file());
-    let config = std::fs::read_to_string(config_path)?;
+    let config = std::fs::read_to_string(&config_path)
+        .unwrap_or_else(|_| panic!("Failed to read config at '{:?}'", config_path));
     let args = toml::from_str::<Args>(&config)?;
     #[cfg(not(feature = "server-only"))]
     let server_url = args.get_server_url();

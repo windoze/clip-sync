@@ -1,0 +1,95 @@
+on:
+  push:
+    branches:
+      -  '**'  
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+name: CI
+
+jobs:
+  check_n_build_m:
+    name: Check and Build on macOS
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+      - run: |
+          cargo fmt --check
+          cargo test
+          cargo clippy -- -D warnings
+          cargo build --verbose --release
+          rustup target add aarch64-apple-darwin
+          cargo build --verbose --release --target aarch64-apple-darwin
+          cargo build --verbose --release
+          lipo -create -output clip-sync target/release/clip-sync target/aarch64-apple-darwin/release/clip-sync
+
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-universal-apple-darwin
+          path: clip-sync
+
+  check_n_build_w:
+    name: Check and Build on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+      - run: |
+          cargo fmt --check
+          cargo test
+          cargo clippy -- -D warnings
+          cargo build --verbose --release
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-x86_64-windows-msvc
+          path: target/release/clip-sync.exe
+
+  check_n_build_l:
+    name: Check and Build on Linux
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt,clippy
+      - run: |
+          cargo fmt --check
+          cargo clippy --no-default-features --features server-only -- -D warnings
+          sudo apt-get -y update
+          sudo apt-get -y install musl-tools musl-dev
+          rustup target add x86_64-unknown-linux-musl
+          cargo build --no-default-features --features server-only --verbose --release --target x86_64-unknown-linux-musl
+          sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+          cargo test
+          cargo clippy -- -D warnings
+          cargo build --verbose --release
+          rustup target add wasm32-unknown-unknown
+          cd clip-sync-ui && cargo install dioxus-cli && dx build --release && cd ..
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-x86_64-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/clip-sync
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-x86_64-linux-gnu
+          path: target/release/clip-sync
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-ui-dist
+          path: clip-sync-ui/dist/
