@@ -102,13 +102,15 @@ struct ClipboardMessage {
     timestamp: i64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ServerClipboardData {
     pub source: String,
+    #[serde(flatten)]
     pub content: ServerClipboardContent,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ServerClipboardContent {
     Text(String),
     ImageUrl(String),
@@ -394,4 +396,27 @@ pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
         Server::new(listener).run(app).await?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_serde() {
+        use super::{ServerClipboardContent, ServerClipboardData};
+        let data = ServerClipboardData {
+            source: "test".to_string(),
+            content: ServerClipboardContent::Text("test".to_string()),
+        };
+        let json = serde_json::to_string(&data).unwrap();
+        println!("{}", json);
+        let data2: ServerClipboardData = serde_json::from_str(&json).unwrap();
+        assert_eq!(data, data2);
+
+        let msg = super::ClipboardMessage {
+            entry: data,
+            timestamp: 0,
+        };
+        let json = serde_json::to_string(&msg).unwrap();
+        println!("{}", json);
+    }
 }
