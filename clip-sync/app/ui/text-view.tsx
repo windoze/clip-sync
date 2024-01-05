@@ -23,7 +23,7 @@ function EntryView(entry: Entry, messageApi: MessageInstance) {
     return (
         <li key={`${entry.source}:${entry.timestamp}`}>
             <div className="relative">
-                <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone /></Button>
+                <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button>
                 <pre><code className="language-css">{entry.text}</code></pre>
                 <Space size={[0, 2]} wrap>
                     <Tag color="blue">{entry.source}</Tag>
