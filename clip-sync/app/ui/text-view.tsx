@@ -1,24 +1,50 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Entry, SearchParam, search } from '../lib/api';
 import { init } from 'next/dist/compiled/webpack/webpack';
+import Search from 'antd/es/input/Search';
+import { match } from 'assert';
+import Button, { isString } from 'antd/es/button';
+import { on } from 'events';
+import { Divider, Space, Tag, message } from 'antd';
+import { CopyTwoTone } from '@ant-design/icons';
+import { MessageInstance } from 'antd/es/message/interface';
 
-function EntryView(entry: Entry) {
+function EntryView(entry: Entry, messageApi: MessageInstance) {
+    function onCopy() {
+        navigator.clipboard.writeText(entry.text);
+        messageApi.open({
+            type: 'success',
+            content: 'Copied to clipboard',
+            duration: 3,
+        });
+    }
+    let time = new Date(entry.timestamp * 1000);
+    let timeStr = `${time.getFullYear()}-${time.getMonth() + 1}-${time.getDate()} ${time.getHours()}:${time.getMinutes()}:${time.getSeconds()}`;
     return (
         <li key={`${entry.source}:${entry.timestamp}`}>
-            <pre>{entry.text}</pre>
+            <div className="relative">
+                <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone /></Button>
+                <pre><code className="language-css">{entry.text}</code></pre>
+                <Space size={[0, 2]} wrap>
+                    <Tag color="blue">{entry.source}</Tag>
+                    <Tag color="green">{timeStr}</Tag>
+                </Space>
+                <Divider />
+            </div>
         </li>
     )
 }
 
-function History(entries: Entry[]) {
+function History(entries: Entry[], messageApi: MessageInstance) {
     return (
         <ul>
-            {entries.map((entry) => EntryView(entry))}
+            {entries.map((entry) => EntryView(entry, messageApi))}
         </ul>
     )
 }
 
 export function SearchableTextHistory() {
+    const [messageApi, contextHolder] = message.useMessage();
     let initParam: SearchParam = {
         text: '',
         sources: [],
@@ -35,14 +61,23 @@ export function SearchableTextHistory() {
     var initTimerId: any | null = null;
     let [timerId, setTimerId] = useState(initTimerId);
 
-    function onSearch(event: FormEvent<HTMLInputElement>) {
+    useEffect(() => {
+        search(initParam, (r) => {
+            setResult(r);
+        });
+    }, []);
+
+    function onInput(value: string | FormEvent<HTMLInputElement>) {
         if (timerId) {
             clearTimeout(timerId);
         }
         setTimerId(setTimeout(() => {
-            let text = (event.target as HTMLInputElement).value;
             let p = param;
-            p.text = text;
+            if (isString(value)) {
+                p.text = value;
+            } else {
+                p.text = (value.target as HTMLInputElement).value;
+            }
             setParam(p);
             search(param, (r) => {
                 setResult(r);
@@ -52,9 +87,11 @@ export function SearchableTextHistory() {
 
     return (
         <div>
-            <input id="search-text" type="text" onInput={onSearch} placeholder='Search text' />
+            {contextHolder}
+            <Search placeholder="input search text" onSearch={onInput} allowClear enterButton onInput={onInput} autoFocus />
+            <Divider />
             <div>
-                {History(result)}
+                {History(result, messageApi)}
             </div>
         </div>
     )

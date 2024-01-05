@@ -1,39 +1,73 @@
 'use client'
 
+
+import '../public/antd.min.css';
+import '../app/globals.css';
 import Image from 'next/image'
-import { Tab, Tabs, TabList, TabPanel } from 'react-tabs';
-import 'react-tabs/style/react-tabs.css';
+import { Flex, Layout, Tabs } from 'antd';
 import { SearchableTextHistory } from './ui/text-view';
+import { Content, Footer, Header } from 'antd/es/layout/layout';
 
 export default function Home() {
+  const items = [
+    {
+      key: '1',
+      label: 'Text',
+      children: SearchableTextHistory(),
+    },
+    {
+      key: '2',
+      label: 'Image',
+      children: 'Image Gallery',
+    },
+  ];
+
+  const headerStyle = {
+    textAlign: 'left',
+    color: '#fff',
+    height: 64,
+    paddingInline: 48,
+    lineHeight: '64px',
+    backgroundColor: '#4096ff',
+  };
+  const contentStyle = {
+    minHeight: 120,
+    lineHeight: '120px',
+    // color: '#fff',
+    // backgroundColor: '#0958d9',
+    paddingInline: 48,
+  };
+  const footerStyle = {
+    textAlign: 'center',
+    color: '#fff',
+    // backgroundColor: '#4096ff',
+  };
+  const layoutStyle = {
+    borderRadius: 8,
+    overflow: 'hidden',
+    width: 'calc(100% - 8px)',
+    maxWidth: 'calc(100% - 8px)',
+  };
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <div className="flex flex-col items-center justify-center">
-          <div className="flex flex-col items-center justify-center">
-            <h1 className="text-5xl font-bold text-center">
+    <Flex gap="middle" vertical justify="center">
+      <Layout style={layoutStyle}>
+        <Header style={headerStyle}>
+          <div>
+            <h1 className="text-5xl font-bold text-left">
               ClipSync
             </h1>
             <p className="mt-4 text-center">
               A clipboard syncing tool
             </p>
           </div>
-          <div>
-            <Tabs defaultIndex={0} onSelect={(index) => console.log(index)}>
-              <TabList>
-                <Tab>Text</Tab>
-                <Tab>Image</Tab>
-              </TabList>
-              <TabPanel>
-                {SearchableTextHistory()}
-              </TabPanel>
-              <TabPanel>
-                <p>Image</p>
-              </TabPanel>
-            </Tabs>
-          </div>
-        </div>
-      </div>
-    </main>
+        </Header>
+        <Content style={contentStyle}>
+          <Tabs defaultActiveKey="1" items={items} />
+
+        </Content>
+        <Footer style={footerStyle}>Footer</Footer>
+      </Layout>
+    </Flex>
   )
 }
