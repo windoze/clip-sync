@@ -16,9 +16,15 @@ export type SearchParam = {
     skip: number | undefined;
 };
 
-const API_URL = "https://clip.0d0a.com:23000/api";
+export type SearchResult = {
+    total: number;
+    skip: number;
+    data: Entry[];
+};
 
-export function search(param: SearchParam, callback: ((result: Entry[]) => any)) {
+const API_URL = "http://localhost:13000/api";
+
+export function search(param: SearchParam, callback: ((result: SearchResult) => any)) {
     const { text, sources, begin, end, start, size, skip } = param;
     const url = new URL(`${API_URL}/query`);
     if (text) url.searchParams.append("q", text);
@@ -32,10 +38,10 @@ export function search(param: SearchParam, callback: ((result: Entry[]) => any))
     const res = fetch(url).then(res => {
         if (res.ok) {
             res.json().then(json => {
-                callback(json as Entry[]);
+                callback(json as SearchResult);
             });
         } else {
-            callback([]);
+            callback({ total: 0, skip: 0, data: [] });
         }
     });
 }

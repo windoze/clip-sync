@@ -1,15 +1,15 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Entry, SearchParam, search } from '../lib/api';
+import { Entry, SearchParam, SearchResult, search } from '../lib/api';
 import { init } from 'next/dist/compiled/webpack/webpack';
 import Search from 'antd/es/input/Search';
 import { match } from 'assert';
 import Button, { isString } from 'antd/es/button';
 import { on } from 'events';
-import { Divider, Space, Tag, message } from 'antd';
-import { CopyTwoTone } from '@ant-design/icons';
+import { Divider, Input, Space, Tag, message } from 'antd';
+import { CopyTwoTone, SearchOutlined } from '@ant-design/icons';
 import { MessageInstance } from 'antd/es/message/interface';
 
-function EntryView(entry: Entry, messageApi: MessageInstance) {
+function EntryView(entry: Entry, messageApi: MessageInstance, index: number) {
     function onCopy() {
         navigator.clipboard.writeText(entry.text);
         messageApi.open({
@@ -21,7 +21,7 @@ function EntryView(entry: Entry, messageApi: MessageInstance) {
     let time = new Date(entry.timestamp * 1000);
     let timeStr = `${time.getFullYear()}-${time.getMonth() + 1}-${time.getDate()} ${time.getHours()}:${time.getMinutes()}:${time.getSeconds()}`;
     return (
-        <li key={`${entry.source}:${entry.timestamp}`}>
+        <li key={index}>
             <div className="relative">
                 <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button>
                 <pre><code className="language-css">{entry.text}</code></pre>
@@ -36,9 +36,10 @@ function EntryView(entry: Entry, messageApi: MessageInstance) {
 }
 
 function History(entries: Entry[], messageApi: MessageInstance) {
+    console.log("YYYYYY", entries);
     return (
         <ul>
-            {entries.map((entry) => EntryView(entry, messageApi))}
+            {entries.map((entry, index) => EntryView(entry, messageApi, index))}
         </ul>
     )
 }
@@ -54,33 +55,38 @@ export function SearchableTextHistory() {
         size: 100,
         skip: 0,
     };
-    let initResult: Entry[] = [];
     let [param, setParam] = useState(initParam);
-    let [result, setResult] = useState(initResult);
+    let initEntries: Entry[] = [];
+    let [entries, setEntries] = useState(initEntries);
 
     var initTimerId: any | null = null;
     let [timerId, setTimerId] = useState(initTimerId);
 
     useEffect(() => {
         search(initParam, (r) => {
-            setResult(r);
+            mergeResult(r);
         });
     }, []);
 
-    function onInput(value: string | FormEvent<HTMLInputElement>) {
+    function mergeResult(result: SearchResult) {
+        // Merge result with existing entries
+        let e = [
+            ...entries.slice(0, result.skip),
+            ...result.data,
+        ];
+        setEntries(e);
+    }
+
+    function onInput(value: FormEvent<HTMLInputElement>) {
         if (timerId) {
             clearTimeout(timerId);
         }
         setTimerId(setTimeout(() => {
             let p = param;
-            if (isString(value)) {
-                p.text = value;
-            } else {
-                p.text = (value.target as HTMLInputElement).value;
-            }
+            p.text = (value.target as HTMLInputElement).value;
             setParam(p);
             search(param, (r) => {
-                setResult(r);
+                mergeResult(r);
             });
         }, 500));
     }
@@ -88,10 +94,10 @@ export function SearchableTextHistory() {
     return (
         <div>
             {contextHolder}
-            <Search placeholder="input search text" onSearch={onInput} allowClear enterButton onInput={onInput} autoFocus />
+            <Input placeholder="input search text" allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} />
             <Divider />
             <div>
-                {History(result, messageApi)}
+                {History(entries, messageApi)}
             </div>
         </div>
     )
