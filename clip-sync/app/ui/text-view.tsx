@@ -48,7 +48,7 @@ function EntryView(entry: Entry, messageApi: MessageInstance, index: number) {
     return (
         <li key={index}>
             <div className="relative">
-                <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button>
+                <Tooltip placement="topRight" title="Copy to clipboard"><Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>
                 <pre><code className="language-css">{entry.text}</code></pre>
                 <Space size={[0, 2]} wrap>
                     <Tag color="blue">{entry.source}</Tag>
