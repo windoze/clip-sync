@@ -9,6 +9,7 @@
   "cSpell.words": [
     "antd",
     "arboard",
+    "Caser",
     "clipsync",
     "dioxus",
     "evenodd",
@@ -18,6 +19,7 @@
     "libxcb",
     "Mmap",
     "mqtt",
+    "Ngram",
     "oninput",
     "onsubmit",
     "rumqttc",
