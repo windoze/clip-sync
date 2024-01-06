@@ -1,0 +1,5 @@
+FROM node:alpine AS ui-builder
+WORKDIR /usr/src/clip-sync
+COPY . .
+RUN cd clip-sync && npm install && npm run build
+

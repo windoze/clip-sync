@@ -1,8 +1,8 @@
 use std::{ops::Bound, path::PathBuf, sync::Arc, time::Duration};
 
-use chrono::{TimeZone, Utc};
+use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
-use log::{debug, info, warn};
+use log::{debug, info, trace, warn};
 use poem::{
     endpoint::StaticFilesEndpoint,
     error::StaticFileError,
@@ -14,39 +14,20 @@ use poem::{
     web::{
         headers::{HeaderMapExt, Range},
         websocket::{Message, WebSocket},
-        Data, Html, Json, Multipart, Path, StaticFileResponse,
+        Data, Json, Multipart, Path, StaticFileResponse,
     },
     Body, EndpointExt, IntoResponse, Request, Route, Server,
 };
-use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast::channel, RwLock};
 
 use crate::{server::global_state::GlobalState, APP_ICON};
 
 mod auth;
 mod global_state;
+mod models;
 mod search;
 
-pub use search::QueryParam;
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(deny_unknown_fields, rename_all = "kebab-case")]
-pub struct ServerConfig {
-    pub endpoint: String,
-    pub secret: Option<String>,
-    #[serde(default)]
-    pub use_tls: bool,
-    pub cert_path: Option<PathBuf>,
-    pub key_path: Option<PathBuf>,
-    pub index_path: Option<PathBuf>,
-    pub image_path: Option<PathBuf>,
-}
-
-#[handler]
-fn index() -> Html<&'static str> {
-    // TODO: Add a proper index page
-    Html("<html><head><title>ClipSync</title></head><body>ClipSync Server</body></html>")
-}
+pub use models::*;
 
 #[handler]
 fn fav_icon(req: &Request) -> Result<StaticFileResponse, StaticFileError> {
@@ -90,32 +71,6 @@ fn fav_icon(req: &Request) -> Result<StaticFileResponse, StaticFileError> {
     })
 }
 
-fn default_timestamp() -> i64 {
-    Utc::now().timestamp()
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct ClipboardMessage {
-    #[serde(flatten)]
-    entry: ServerClipboardData,
-    #[serde(default = "default_timestamp")]
-    timestamp: i64,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ServerClipboardData {
-    pub source: String,
-    #[serde(flatten)]
-    pub content: ServerClipboardContent,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ServerClipboardContent {
-    Text(String),
-    ImageUrl(String),
-}
-
 #[handler]
 async fn ws(
     Path(name): Path<String>,
@@ -135,7 +90,7 @@ async fn ws(
         tokio::spawn(async move {
             while let Some(Ok(msg)) = stream.next().await {
                 if let Message::Pong(_) = msg {
-                    debug!("Pong from device '{}'.", &name_clone);
+                    trace!("Pong from device '{}'.", &name_clone);
                     continue;
                 }
                 if let Message::Text(text) = msg {
@@ -171,7 +126,6 @@ async fn ws(
                 match tokio::time::timeout(Duration::from_secs(5), receiver.recv()).await {
                     Ok(Ok(msg)) => {
                         if msg.entry.source == name {
-                            debug!("Skipping sending message to the source device '{}'.", &name);
                             continue;
                         }
                         if sink
@@ -190,7 +144,7 @@ async fn ws(
                     }
                     Err(_) => {
                         // Timeout
-                        debug!("Sending ping to device '{}'.", &name);
+                        trace!("Sending ping to device '{}'.", &name);
                         match sink.send(Message::Ping(vec![])).await {
                             Ok(_) => continue,
                             Err(e) => {
@@ -220,60 +174,12 @@ async fn get_online_device_list(data: Data<&Arc<RwLock<GlobalState>>>) -> impl I
     Json(device_list)
 }
 
-#[derive(Debug, Clone, Deserialize)]
-struct Params {
-    #[serde(default)]
-    q: Option<String>,
-    #[serde(default)]
-    from: Option<String>,
-    #[serde(default)]
-    begin: Option<i64>,
-    #[serde(default)]
-    end: Option<i64>,
-    #[serde(default)]
-    size: Option<usize>,
-    #[serde(default)]
-    skip: Option<usize>,
-    #[serde(default)]
-    sort: Option<String>,
-}
-
-impl From<Params> for QueryParam {
-    fn from(val: Params) -> Self {
-        QueryParam {
-            query: val.q,
-            sources: val
-                .from
-                .unwrap_or_default()
-                .split(',')
-                .map(|s| s.to_string())
-                .filter(|s| !s.is_empty())
-                .collect(),
-            time_range: match (val.begin, val.end) {
-                (Some(begin), Some(end)) => Some((
-                    Utc.timestamp_opt(begin, 0).unwrap(),
-                    Utc.timestamp_opt(end, 0).unwrap(),
-                )),
-                (Some(begin), None) => Some((Utc.timestamp_opt(begin, 0).unwrap(), Utc::now())),
-                (None, Some(end)) => Some((
-                    Utc.timestamp_opt(0, 0).unwrap(),
-                    Utc.timestamp_opt(end, 0).unwrap(),
-                )),
-                _ => None,
-            },
-            skip: val.skip.unwrap_or(0),
-            size: val.size.unwrap_or(10),
-            sort_by_score: val.sort.unwrap_or("time".to_string()) == "score",
-        }
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 #[handler]
 async fn query(
     req: &Request,
     data: Data<&Arc<RwLock<GlobalState>>>,
-) -> poem::Result<Json<Vec<ClipboardMessage>>> {
+) -> poem::Result<Json<QueryResult>> {
     let params = req.params::<Params>()?;
     debug!("Query: {:?}", params);
     let global_state = data.0.clone();
@@ -288,24 +194,6 @@ async fn query(
             Err(poem::Error::from_status(StatusCode::BAD_REQUEST))
         }
     }
-}
-
-fn api(
-    args: ServerConfig,
-    global_state: Arc<RwLock<GlobalState>>,
-) -> auth::ApiKeyAuthEndpoint<poem::middleware::CorsEndpoint<poem::Route>> {
-    Route::new()
-        .at(
-            "/device-list",
-            get(get_device_list).data(global_state.clone()),
-        )
-        .at(
-            "/online-device-list",
-            get(get_online_device_list).data(global_state.clone()),
-        )
-        .at("/query", get(query).data(global_state.clone()))
-        .with(Cors::new())
-        .with(auth::ApiKeyAuth::new(args.secret))
 }
 
 #[handler]
@@ -358,18 +246,22 @@ async fn upload_image(
     Err(poem::Error::from_status(StatusCode::BAD_REQUEST))
 }
 
-pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
-    let (sender, _) = channel::<ClipboardMessage>(32);
-    if args.image_path.is_none() {
-        args.image_path = Some(PathBuf::from("./images"));
-    }
+fn api(
+    args: ServerConfig,
+    global_state: Arc<RwLock<GlobalState>>,
+) -> auth::ApiKeyAuthEndpoint<poem::middleware::CorsEndpoint<poem::Route>> {
     let image_path = args.image_path.clone().unwrap();
-    let global_state = Arc::new(RwLock::new(GlobalState::new(&args, sender)));
-    let app = Route::new()
-        .nest(
-            "/",
-            StaticFilesEndpoint::new("./static-files").index_file("index.html"),
+    Route::new()
+        .at("/clip-sync/:device_id", get(ws.data(global_state.clone())))
+        .at(
+            "/device-list",
+            get(get_device_list).data(global_state.clone()),
         )
+        .at(
+            "/online-device-list",
+            get(get_online_device_list).data(global_state.clone()),
+        )
+        .at("/query", get(query).data(global_state.clone()))
         .nest(
             "/images",
             StaticFilesEndpoint::new(image_path).show_files_listing(),
@@ -378,8 +270,25 @@ pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
             "/upload-image/:device_id",
             post(upload_image.data(global_state.clone())),
         )
+        .with(Cors::new())
+        .with(auth::ApiKeyAuth::new(args.secret))
+}
+
+pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
+    let (sender, _) = channel::<ClipboardMessage>(32);
+    if args.image_path.is_none() {
+        args.image_path = Some(PathBuf::from("./images"));
+    }
+    if args.web_root.is_none() {
+        args.web_root = Some(PathBuf::from("./static-files"));
+    }
+    let global_state = Arc::new(RwLock::new(GlobalState::new(&args, sender)));
+    let app = Route::new()
+        .nest(
+            "/",
+            StaticFilesEndpoint::new(args.web_root.as_ref().unwrap()).index_file("index.html"),
+        )
         .at("/favicon.ico", get(fav_icon))
-        .at("/clip-sync/:device_id", get(ws.data(global_state.clone())))
         .nest("/api", api(args.clone(), global_state));
 
     let listener = TcpListener::bind(args.endpoint);
@@ -402,14 +311,14 @@ pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
 mod tests {
     #[test]
     fn test_serde() {
-        use super::{ServerClipboardContent, ServerClipboardData};
-        let data = ServerClipboardData {
+        use super::{ServerClipboardContent, ServerClipboardRecord};
+        let data = ServerClipboardRecord {
             source: "test".to_string(),
             content: ServerClipboardContent::Text("test".to_string()),
         };
         let json = serde_json::to_string(&data).unwrap();
         println!("{}", json);
-        let data2: ServerClipboardData = serde_json::from_str(&json).unwrap();
+        let data2: ServerClipboardRecord = serde_json::from_str(&json).unwrap();
         assert_eq!(data, data2);
 
         let msg = super::ClipboardMessage {

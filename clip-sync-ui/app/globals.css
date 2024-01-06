@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+li {
+  margin: 10px 0;
+}
+
+div.spaced {
+  margin: 10px 0;
+}
+
+.ant-picker-ok {
+  display: none !important;
+}
+
+pre {
+  font-size: 16px;
+  border: 2px solid grey;
+  border-left: 12px solid #87b7f3;
+  border-radius: 5px;
+  padding: 14px;
+  width: 100%;
+  
+  /* Fixed line height */
+  line-height: 24px;
+  
+  /* Use repeating-linear-gradient for background image */
+  background-image: repeating-linear-gradient(
+      180deg,
+      #eee 0px,
+      #eee 24px,
+      #fff 24px,
+      #fff 48px);
+
+  /* Offset the background along the y-axis by top padding */
+  background-position: 0 14px;
+  /* white-space:pre-wrap; */
+  overflow-x:scroll;
+  font-family:monospace;
+}
+
+pre[class*="language-"] button {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+
+  font-size: 0.9rem;
+  padding: 0.15rem;
+  background-color: #828282;
+
+  border: ridge 1px #7b7b7c;
+  border-radius: 5px;
+  text-shadow: #c4c4c4 0 0 2px;
+}
+
+pre[class*="language-"] button:hover {
+  cursor: pointer;
+  background-color: #bcbabb;
+}

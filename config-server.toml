@@ -1,3 +1,5 @@
 [server]
 endpoint = "0.0.0.0:3000"
 index-path = "/index"
+image-path = "/images"
+web-root = "/static-files"

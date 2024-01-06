@@ -13,18 +13,17 @@ COPY . ./
 RUN cargo build --release --no-default-features --features server-only --target=$(xx-info march)-unknown-linux-musl && \
     cp /usr/src/target/$(xx-info march)-unknown-linux-musl/release/clip-sync /
 
-FROM rust:buster AS ui-builder
+FROM node:alpine AS ui-builder
 WORKDIR /usr/src/clip-sync
 COPY . .
-RUN rustup target add wasm32-unknown-unknown && cargo install dioxus-cli
-RUN cd clip-sync-ui && dx build --release
+RUN cd clip-sync-ui && npm install && npm run build
 
 FROM alpine
 RUN apk add --update openssl bash
-RUN mkdir /index
+RUN mkdir /index /images
 COPY --from=builder /clip-sync /app/clip-sync
-COPY --from=builder /usr/src/config.toml /config/config.toml
+COPY --from=builder /usr/src/config-server.toml /config/config.toml
 COPY --from=ui-builder /usr/src/clip-sync/clip-sync-ui/dist /static-files
 EXPOSE 3000
 WORKDIR /
-CMD ["/app/clip-sync", "--config", "/config/config.toml"]
+CMD ["/app/clip-sync", "--config", "/config/config.toml", "-vv"]

@@ -1,32 +1,23 @@
 use std::{collections::HashSet, path::PathBuf};
 
-use chrono::{DateTime, Utc};
 use log::debug;
 use tantivy::{
-    collector::TopDocs,
+    collector::{Count, FruitHandle, MultiCollector, TopDocs},
     directory::MmapDirectory,
     doc,
     merge_policy::LogMergePolicy,
-    query::{AllQuery, BooleanQuery, FuzzyTermQuery, Query, QueryParser, RangeQuery},
+    query::{AllQuery, BooleanQuery, Query, QueryParser, RangeQuery, TermSetQuery},
     query_grammar::Occur,
-    schema::{
-        Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, STORED, TEXT,
-    },
+    schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, STORED},
+    tokenizer::{LowerCaser, NgramTokenizer, TextAnalyzer},
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
 };
 
-use crate::server::{ServerClipboardContent, ServerClipboardData};
+use super::{
+    ClipboardMessage, QueryParam, QueryResult, ServerClipboardContent, ServerClipboardRecord,
+};
 
-use super::ClipboardMessage;
-
-pub struct QueryParam {
-    pub query: Option<String>,
-    pub sources: HashSet<String>,
-    pub time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
-    pub skip: usize,
-    pub size: usize,
-    pub sort_by_score: bool,
-}
+const TOKENIZER_NAME: &str = "ngram_m_n";
 
 #[derive(Clone)]
 pub struct Search {
@@ -42,14 +33,25 @@ impl Search {
     pub fn new(index_path: Option<PathBuf>) -> Self {
         let mut schema_builder = Schema::builder();
 
-        let text_options = TextOptions::default()
+        let token_options = TextOptions::default()
             .set_indexing_options(
                 TextFieldIndexing::default()
-                    .set_tokenizer("jieba")
+                    .set_tokenizer("raw")
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             )
             .set_stored();
-        let source = schema_builder.add_text_field("source", TEXT | STORED);
+        let tokenizer = TextAnalyzer::builder(NgramTokenizer::new(2, 4, false).unwrap())
+            .filter(LowerCaser)
+            .build();
+
+        let text_options = TextOptions::default()
+            .set_indexing_options(
+                TextFieldIndexing::default()
+                    .set_tokenizer(TOKENIZER_NAME)
+                    .set_index_option(IndexRecordOption::WithFreqsAndPositions),
+            )
+            .set_stored();
+        let source = schema_builder.add_text_field("source", token_options);
         let content = schema_builder.add_text_field("content", text_options);
         let timestamp = schema_builder.add_i64_field("timestamp", FAST | STORED);
         let schema = schema_builder.build();
@@ -60,9 +62,8 @@ impl Search {
             }
             None => Index::create_in_ram(schema.clone()),
         };
-        index
-            .tokenizers()
-            .register("jieba", tantivy_jieba::JiebaTokenizer {});
+        index.tokenizers().register(TOKENIZER_NAME, tokenizer);
+        // .register("jieba", tantivy_jieba::JiebaTokenizer {});
         let reader = index
             .reader_builder()
             .reload_policy(ReloadPolicy::OnCommit)
@@ -120,7 +121,7 @@ impl Search {
         Ok(device_list)
     }
 
-    pub fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardMessage>> {
+    pub fn query(&self, param: QueryParam) -> anyhow::Result<QueryResult> {
         let searcher = self.reader.searcher();
 
         let content_q: Box<dyn Query> = match param.query {
@@ -148,19 +149,13 @@ impl Search {
             }
             false => {
                 debug!("Source query: {:?}", param.sources);
-                let source_q = BooleanQuery::new(
+                let source_q = TermSetQuery::new(
                     param
                         .sources
                         .into_iter()
-                        .map(|s| {
-                            (Occur::Should, {
-                                let term = Term::from_field_text(self.source, &s);
-                                Box::new(FuzzyTermQuery::new(term, 2, true)) as Box<dyn Query>
-                            })
-                        })
+                        .map(|s| Term::from_field_text(self.source, &s))
                         .collect::<Vec<_>>(),
                 );
-
                 Box::new(source_q)
             }
         };
@@ -182,21 +177,31 @@ impl Search {
             (Occur::Must, source_q),
             (Occur::Must, time_q),
         ]);
-        let collector = TopDocs::with_limit(param.size).and_offset(param.skip);
-        let result: Vec<(f64, DocAddress)> = if param.sort_by_score {
-            searcher
-                .search(&q, &collector)?
+        let mut collectors = MultiCollector::new();
+        let count_handle = collectors.add_collector(Count);
+        let (count, ret) = if param.sort_by_score {
+            let top_docs_handle =
+                collectors.add_collector(TopDocs::with_limit(param.size).and_offset(param.skip));
+            let mut multi_fruit = searcher.search(&q, &collectors)?;
+            let count = count_handle.extract(&mut multi_fruit);
+            let ret = top_docs_handle
+                .extract(&mut multi_fruit)
                 .into_iter()
-                .map(|(ts, d)| (ts as f64, d))
-                .collect()
+                .map(|(v, d)| (v as i64, d))
+                .collect::<Vec<_>>();
+            (count, ret)
         } else {
-            searcher
-                .search(&q, &collector.order_by_fast_field("timestamp", Order::Desc))?
-                .into_iter()
-                .map(|(ts, d): (i64, DocAddress)| (ts as f64, d))
-                .collect()
+            let top_docs_handle: FruitHandle<Vec<(i64, DocAddress)>> = collectors.add_collector(
+                TopDocs::with_limit(param.size)
+                    .and_offset(param.skip)
+                    .order_by_fast_field("timestamp", Order::Desc),
+            );
+            let mut multi_fruit = searcher.search(&q, &collectors)?;
+            let count = count_handle.extract(&mut multi_fruit);
+            let ret = top_docs_handle.extract(&mut multi_fruit);
+            (count, ret)
         };
-        let ret = result
+        let ret = ret
             .into_iter()
             .map(|(_, doc_address)| {
                 let doc = searcher.doc(doc_address);
@@ -217,7 +222,7 @@ impl Search {
                         .and_then(|v| v.as_i64())
                         .unwrap_or_default();
                     ClipboardMessage {
-                        entry: ServerClipboardData {
+                        entry: ServerClipboardRecord {
                             source: source.to_string(),
                             content: ServerClipboardContent::Text(data.to_string()),
                         },
@@ -227,6 +232,10 @@ impl Search {
             })
             .filter_map(|d| d.ok())
             .collect::<Vec<_>>();
-        Ok(ret)
+        Ok(QueryResult {
+            total: count,
+            skip: param.skip,
+            data: ret,
+        })
     }
 }
