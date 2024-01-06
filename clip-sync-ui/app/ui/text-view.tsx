@@ -6,7 +6,6 @@ import { CopyTwoTone, SearchOutlined, SettingFilled, SettingOutlined } from '@an
 import { MessageInstance } from 'antd/es/message/interface';
 import { pages } from 'next/dist/build/templates/app-page';
 import { get } from 'http';
-import { split } from 'postcss/lib/list';
 
 const { RangePicker } = DatePicker;
 

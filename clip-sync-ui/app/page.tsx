@@ -7,6 +7,7 @@ import { SearchableTextHistory } from './ui/text-view';
 import { GithubOutlined } from '@ant-design/icons';
 import { CSSProperties } from 'react';
 import Image from 'next/image';
+import { ImageView } from './ui/image-view';
 
 const { Header, Footer, Content } = Layout;
 
@@ -20,7 +21,7 @@ export default function Home() {
     {
       key: '2',
       label: 'Image',
-      children: 'Image Gallery',
+      children: ImageView(),
     },
   ];
 
@@ -56,7 +57,7 @@ export default function Home() {
         <Header style={headerStyle}>
           <div>
             <Row>
-              <Col span={2}><Image src={"./favicon.ico"} width={64} height={64} className={"inline-block w-12 h-12 mr-2"} alt={'ClipSync'} /></Col>
+              <Col span={2}><Image src={"/favicon.ico"} width={64} height={64} className={"inline-block w-12 h-12 mr-2"} alt={'ClipSync'} /></Col>
               <Col span={20}><h1 style={headerStyle} className="text-4xl font-bold text-left">Clip Sync</h1></Col>
             </Row>
             <p className="mt-4 text-center">
