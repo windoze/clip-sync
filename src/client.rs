@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use futures::{stream::SplitStream, SinkExt, StreamExt};
 use futures_util::stream::SplitSink;
 use gethostname::gethostname;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use serde::Deserialize;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -13,8 +13,8 @@ use tokio_tungstenite::{
 
 use crate::{
     clipboard_handler,
-    server::{ServerClipboardContent, ServerClipboardData},
-    ClipboardContent, ClipboardData, ClipboardSink, ClipboardSource,
+    server::{ServerClipboardContent, ServerClipboardRecord},
+    ClipboardContent, ClipboardRecord, ClipboardSink, ClipboardSource,
 };
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -41,11 +41,26 @@ async fn clip_sync_svc_impl(args: ClientConfig) -> anyhow::Result<()> {
             .unwrap_or(random_string::generate(12, "abcdefghijklmnopqrstuvwxyz")),
     );
 
-    let url = url::Url::parse(&format!("{}/{}", &args.server_url, &sender_id))?;
+    let server_url = if args.server_url.ends_with('/') {
+        format!("{}api/clip-sync/{}", &args.server_url, &sender_id)
+    } else {
+        format!("{}/api/clip-sync/{}", &args.server_url, &sender_id)
+    };
+
+    let mut url = url::Url::parse(&server_url)?;
+    if url.scheme() == "http" || url.scheme() == "ws" {
+        url.set_scheme("ws").unwrap();
+    } else {
+        url.set_scheme("wss").unwrap();
+    }
+    info!("Connecting to {} ...", url);
 
     let req = Request::builder();
     let req = if args.secret.is_some() {
-        req.header("Authorization", format!("Bearer {}", args.secret.unwrap()))
+        req.header(
+            "Authorization",
+            format!("Bearer {}", args.secret.clone().unwrap()),
+        )
     } else {
         req
     }
@@ -59,35 +74,39 @@ async fn clip_sync_svc_impl(args: ClientConfig) -> anyhow::Result<()> {
     .body(())?;
 
     let (ws_stream, _) = tokio_tungstenite::connect_async(req).await?;
+    info!("Connected to {}", url);
 
     let (write, read) = ws_stream.split();
-    let write = WebSocketSink::new(write, &sender_id, &args.server_url)?;
-    let read = WebSocketSource::new(read, &args.server_url)?;
+    let write = WebSocketSink::new(write, &sender_id, &args.server_url, args.secret.clone())?;
+    let read = WebSocketSource::new(read, &args.server_url, args.secret.clone())?;
     clipboard_handler::start(sender_id, read, write).await
 }
 
 struct WebSocketSource {
     source: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     image_url: String,
+    secret: Option<String>,
 }
 
 impl WebSocketSource {
     pub fn new(
         source: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
         server_url: &str,
+        secret: Option<String>,
     ) -> anyhow::Result<Self> {
         let mut url = url::Url::parse(server_url).unwrap();
-        if url.scheme() == "ws" {
+        if url.scheme() == "ws" || url.scheme() == "http" {
             url.set_scheme("http").unwrap();
-        } else if url.scheme() == "wss" {
+        } else if url.scheme() == "wss" || url.scheme() == "https" {
             url.set_scheme("https").unwrap();
         } else {
             return Err(anyhow::anyhow!("Invalid scheme"));
         }
-        url.set_path("/images");
+        url.set_path("/api/images");
         Ok(Self {
             source,
             image_url: url.into(),
+            secret,
         })
     }
 
@@ -106,31 +125,33 @@ impl WebSocketSource {
         debug!("Downloading image from {}", url);
         let url = format!("{}/{}", self.image_url, url);
         let client = reqwest::Client::new();
-        let res = client
-            .get(url)
-            .send()
-            .await
-            .map_err(|e| anyhow::anyhow!("{:?}", e))?;
+        let req = client.get(&url);
+        let req = match &self.secret {
+            Some(secret) => req.bearer_auth(secret),
+            None => req,
+        };
+        let res = req.send().await.map_err(|e| anyhow::anyhow!("{:?}", e))?;
         if !res.status().is_success() {
             warn!("Download failed: {}", res.status());
             return Err(anyhow::anyhow!("Download failed"));
         }
+        info!("Image downloaded from {}", url);
         crate::ImageData::from_png(&res.bytes().await?)
     }
 }
 
 impl ClipboardSource for WebSocketSource {
-    async fn poll(&mut self) -> anyhow::Result<ClipboardData> {
+    async fn poll(&mut self) -> anyhow::Result<ClipboardRecord> {
         let raw_string = self.poll_raw_string().await?;
         debug!("+++Received message: {:?}", raw_string);
         if let Some(raw_string) = raw_string {
-            let data: ServerClipboardData = serde_json::from_str(&raw_string)?;
+            let data: ServerClipboardRecord = serde_json::from_str(&raw_string)?;
             match data.content {
-                ServerClipboardContent::Text(text) => Ok(ClipboardData {
+                ServerClipboardContent::Text(text) => Ok(ClipboardRecord {
                     source: data.source,
                     content: ClipboardContent::Text(text),
                 }),
-                ServerClipboardContent::ImageUrl(url) => Ok(ClipboardData {
+                ServerClipboardContent::ImageUrl(url) => Ok(ClipboardRecord {
                     source: data.source,
                     content: ClipboardContent::Image(self.download_image(&url).await?),
                 }),
@@ -144,6 +165,7 @@ impl ClipboardSource for WebSocketSource {
 struct WebSocketSink {
     sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     upload_url: String,
+    secret: Option<String>,
 }
 
 impl WebSocketSink {
@@ -151,19 +173,21 @@ impl WebSocketSink {
         sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
         device_id: &str,
         server_url: &str,
+        secret: Option<String>,
     ) -> anyhow::Result<Self> {
         let mut url = url::Url::parse(server_url).unwrap();
-        if url.scheme() == "ws" {
+        if url.scheme() == "ws" || url.scheme() == "http" {
             url.set_scheme("http").unwrap();
-        } else if url.scheme() == "wss" {
+        } else if url.scheme() == "wss" || url.scheme() == "https" {
             url.set_scheme("https").unwrap();
         } else {
             return Err(anyhow::anyhow!("Invalid scheme"));
         }
-        url.set_path(&format!("/upload-image/{}", device_id));
+        url.set_path(&format!("/api/upload-image/{}", device_id));
         Ok(Self {
             sink,
             upload_url: url.into(),
+            secret,
         })
     }
 
@@ -183,8 +207,12 @@ impl WebSocketSink {
         let client = reqwest::Client::new();
         let part = reqwest::multipart::Part::bytes(data.to_png()?).mime_str("image/png")?;
         let form = reqwest::multipart::Form::new().part("file", part);
-        let res = client
-            .post(&self.upload_url)
+        let req = client.post(&self.upload_url);
+        let req = match &self.secret {
+            Some(secret) => req.bearer_auth(secret),
+            None => req,
+        };
+        let res = req
             .multipart(form)
             .send()
             .await
@@ -200,11 +228,11 @@ impl WebSocketSink {
 }
 
 impl ClipboardSink for WebSocketSink {
-    async fn publish(&mut self, data: Option<ClipboardData>) -> anyhow::Result<()> {
+    async fn publish(&mut self, data: Option<ClipboardRecord>) -> anyhow::Result<()> {
         let raw_string = match data {
             Some(data) => match data.content {
                 ClipboardContent::Text(text) => {
-                    let data = ServerClipboardData {
+                    let data = ServerClipboardRecord {
                         source: data.source,
                         content: ServerClipboardContent::Text(text),
                     };
@@ -212,7 +240,7 @@ impl ClipboardSink for WebSocketSink {
                 }
                 ClipboardContent::Image(img) => {
                     // Convert data to ServerClipboardData
-                    let data = ServerClipboardData {
+                    let data = ServerClipboardRecord {
                         source: data.source,
                         content: ServerClipboardContent::ImageUrl(self.upload_image(&img).await?),
                     };

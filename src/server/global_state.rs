@@ -7,8 +7,7 @@ use tokio::{
 };
 
 use super::{
-    search::{QueryResult, Search},
-    ClipboardMessage, QueryParam, ServerClipboardContent, ServerConfig,
+    search::Search, ClipboardMessage, QueryParam, QueryResult, ServerClipboardContent, ServerConfig,
 };
 
 pub struct GlobalState {

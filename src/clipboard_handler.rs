@@ -6,21 +6,24 @@ use std::{
 use arboard::Clipboard;
 use clipboard_master::{CallbackResult, ClipboardHandler, Master};
 use futures::Future;
-use log::{debug, warn};
+use log::{debug, info, trace, warn};
 use tokio::sync::mpsc::{Receiver, Sender};
 
-use crate::{ClipboardContent, ClipboardData, ImageData};
+use crate::{ClipboardContent, ClipboardRecord, ImageData};
 
 pub trait ClipboardSource {
-    fn poll(&mut self) -> impl Future<Output = anyhow::Result<ClipboardData>>;
+    fn poll(&mut self) -> impl Future<Output = anyhow::Result<ClipboardRecord>>;
 }
 
 pub trait ClipboardSink {
-    fn publish(&mut self, data: Option<ClipboardData>) -> impl Future<Output = anyhow::Result<()>>;
+    fn publish(
+        &mut self,
+        data: Option<ClipboardRecord>,
+    ) -> impl Future<Output = anyhow::Result<()>>;
 }
 
 pub struct Handler {
-    pub sender: Sender<ClipboardData>,
+    pub sender: Sender<ClipboardRecord>,
     pub provider: Clipboard,
     pub sender_id: String,
     pub last_set_content: Arc<Mutex<ClipboardContent>>,
@@ -38,7 +41,7 @@ impl ClipboardHandler for Handler {
                 }
                 *guard = content.clone();
             }
-            let data = ClipboardData {
+            let data = ClipboardRecord {
                 source: self.sender_id.clone(),
                 content,
             };
@@ -88,7 +91,7 @@ pub async fn start(
 /// Publish the clipboard content to the sink if it's changed.
 async fn clipboard_publisher(
     mut sink: impl ClipboardSink,
-    mut receiver: Receiver<ClipboardData>,
+    mut receiver: Receiver<ClipboardRecord>,
 ) -> anyhow::Result<()> {
     loop {
         match tokio::time::timeout(Duration::from_secs(5), receiver.recv()).await {
@@ -96,11 +99,11 @@ async fn clipboard_publisher(
                 sink.publish(Some(data)).await?;
             }
             Ok(None) => {
-                debug!("Channel closed");
+                warn!("Channel closed");
                 break;
             }
             Err(_) => {
-                debug!("Sending ping to server");
+                trace!("Sending ping to server");
                 sink.publish(None).await?;
             }
         }
@@ -129,6 +132,7 @@ async fn clipboard_subscriber(
                     set_clipboard_content(&mut provider, clipboard_data.content.clone()).map(
                         |changed| {
                             if changed {
+                                info!("Clipboard updated");
                                 *last_set_content.lock().unwrap() = clipboard_data.content;
                             }
                         },
@@ -198,13 +202,17 @@ fn set_clipboard_content(
     provider: &mut Clipboard,
     content: ClipboardContent,
 ) -> anyhow::Result<bool> {
-    let existing = get_clipboard_content(provider)?;
+    let existing = match &content {
+        ClipboardContent::Text(_) => get_clipboard_text(provider)?.map(ClipboardContent::Text),
+        ClipboardContent::Image(_) => get_clipboard_image(provider)?.map(ClipboardContent::Image),
+    };
     if let Some(existing) = existing {
         if existing == content {
             debug!("Clipboard content unchanged, skipping");
             return Ok(false);
         }
     }
+    provider.clear()?;
     match content {
         // HACK: Windows and macOS/Linux have different line endings.
         ClipboardContent::Text(text) => provider.set_text(text.replace("\r\n", "\n")),

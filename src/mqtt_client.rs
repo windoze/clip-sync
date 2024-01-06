@@ -3,7 +3,7 @@ use log::{debug, warn};
 use rumqttc::{AsyncClient, EventLoop, MqttOptions, QoS};
 use serde::Deserialize;
 
-use crate::{clipboard_handler, ClipboardData, ClipboardSink, ClipboardSource};
+use crate::{clipboard_handler, ClipboardRecord, ClipboardSink, ClipboardSource};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -31,11 +31,11 @@ impl MqttSubscriber {
 }
 
 impl ClipboardSource for MqttSubscriber {
-    async fn poll(&mut self) -> anyhow::Result<ClipboardData> {
+    async fn poll(&mut self) -> anyhow::Result<ClipboardRecord> {
         loop {
             match self.eventloop.poll().await {
                 Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(p))) => {
-                    let data: ClipboardData = serde_json::from_slice(&p.payload)?;
+                    let data: ClipboardRecord = serde_json::from_slice(&p.payload)?;
                     if data.source == self.device_id {
                         debug!("Skipping clipboard update from self");
                         continue;
@@ -67,7 +67,7 @@ impl MqttPublisher {
 }
 
 impl ClipboardSink for MqttPublisher {
-    async fn publish(&mut self, data: Option<ClipboardData>) -> anyhow::Result<()> {
+    async fn publish(&mut self, data: Option<ClipboardRecord>) -> anyhow::Result<()> {
         if let Some(data) = data.map(|d| serde_json::to_string(&d).unwrap()) {
             self.client
                 .publish(self.topic.clone(), QoS::AtLeastOnce, false, data)

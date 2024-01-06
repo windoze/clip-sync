@@ -1,8 +1,6 @@
 use std::{collections::HashSet, path::PathBuf};
 
-use chrono::{DateTime, Utc};
 use log::debug;
-use serde::Serialize;
 use tantivy::{
     collector::{Count, FruitHandle, MultiCollector, TopDocs},
     directory::MmapDirectory,
@@ -15,27 +13,11 @@ use tantivy::{
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
 };
 
-use crate::server::{ServerClipboardContent, ServerClipboardData};
-
-use super::ClipboardMessage;
+use super::{
+    ClipboardMessage, QueryParam, QueryResult, ServerClipboardContent, ServerClipboardRecord,
+};
 
 const TOKENIZER_NAME: &str = "ngram_m_n";
-
-pub struct QueryParam {
-    pub query: Option<String>,
-    pub sources: HashSet<String>,
-    pub time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
-    pub skip: usize,
-    pub size: usize,
-    pub sort_by_score: bool,
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct QueryResult {
-    pub total: usize,
-    pub skip: usize,
-    pub data: Vec<ClipboardMessage>,
-}
 
 #[derive(Clone)]
 pub struct Search {
@@ -240,7 +222,7 @@ impl Search {
                         .and_then(|v| v.as_i64())
                         .unwrap_or_default();
                     ClipboardMessage {
-                        entry: ServerClipboardData {
+                        entry: ServerClipboardRecord {
                             source: source.to_string(),
                             content: ServerClipboardContent::Text(data.to_string()),
                         },

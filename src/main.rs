@@ -61,7 +61,7 @@ impl Args {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ClipboardData {
+pub struct ClipboardRecord {
     pub source: String,
     pub content: ClipboardContent,
 }
@@ -199,7 +199,7 @@ mod tray {
         IconSource::Data {
             width: 0,
             height: 0,
-            data: include_bytes!("../icons/app-icon.png").to_vec(),
+            data: crate::APP_ICON.to_vec(),
         }
     }
 
@@ -287,6 +287,7 @@ fn main() -> anyhow::Result<()> {
     let cli = Config::parse();
     env_logger::Builder::new()
         .filter_level(cli.verbose.log_level_filter())
+        .filter_module("tantivy", log::LevelFilter::Warn) // Tantivy is too talky at the INFO level
         .init();
     info!("Starting");
     let config_path = cli.config_path.unwrap_or(get_config_file());
