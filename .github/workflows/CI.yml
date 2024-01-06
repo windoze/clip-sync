@@ -76,8 +76,6 @@ jobs:
           cargo test
           cargo clippy -- -D warnings
           cargo build --verbose --release
-          rustup target add wasm32-unknown-unknown
-          cd clip-sync-ui && cargo install dioxus-cli && dx build --release && cd ..
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
