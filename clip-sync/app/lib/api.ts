@@ -23,8 +23,9 @@ export type SearchResult = {
 };
 
 const API_URL = "http://localhost:13000/api";
+// const API_URL = "https://clip.0d0a.com:23000/api";
 
-export function search(param: SearchParam, callback: ((result: SearchResult) => any)) {
+export async function search(param: SearchParam): Promise<SearchResult> {
     const { text, sources, begin, end, start, size, skip } = param;
     const url = new URL(`${API_URL}/query`);
     if (text) url.searchParams.append("q", text);
@@ -34,16 +35,13 @@ export function search(param: SearchParam, callback: ((result: SearchResult) => 
     if (start) url.searchParams.append("start", start.toString());
     if (size) url.searchParams.append("size", size.toString());
     if (skip) url.searchParams.append("skip", skip.toString());
-    console.log(url.toString());
-    const res = fetch(url).then(res => {
-        if (res.ok) {
-            res.json().then(json => {
-                callback(json as SearchResult);
-            });
-        } else {
-            callback({ total: 0, skip: 0, data: [] });
-        }
-    });
+    // console.log(url.toString());
+    const res = await fetch(url);
+    if (res.ok) {
+        return await res.json();
+    } else {
+        return { total: 0, skip: 0, data: [] };
+    }
 }
 
 export async function getDeviceList(): Promise<string[]> {

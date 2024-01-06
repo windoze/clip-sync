@@ -68,7 +68,7 @@ export default function Home() {
 
         </Content>
         <Footer style={footerStyle}>
-          <GithubOutlined />
+          <a href='https://github.com/windoze/clip-sync' ><GithubOutlined /></a>
         </Footer>
       </Layout>
     </Flex>

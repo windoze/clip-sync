@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Entry, SearchParam, SearchResult, search } from '../lib/api';
-import { Button, Divider, Input, Space, Tag, Tooltip, message } from 'antd';
-import { CopyTwoTone, SearchOutlined } from '@ant-design/icons';
+import { Button, Divider, Empty, Input, Pagination, Space, Spin, Tag, Tooltip, message } from 'antd';
+import { CopyTwoTone, SearchOutlined, SettingOutlined } from '@ant-design/icons';
 import { MessageInstance } from 'antd/es/message/interface';
+import { pages } from 'next/dist/build/templates/app-page';
 
 export function getRelativeTimeString(
     date: Date | number,
@@ -42,7 +43,6 @@ function EntryView(entry: Entry, messageApi: MessageInstance, index: number) {
         });
     }
     let time = new Date(entry.timestamp * 1000);
-    // let timeStrTip = `${time.getFullYear()}-${time.getMonth() + 1}-${time.getDate()} ${time.getHours()}:${time.getMinutes()}:${time.getSeconds()}`;
     let timeStrTip = time.toLocaleString();
     let timeStr = getRelativeTimeString(time);
     return (
@@ -50,30 +50,34 @@ function EntryView(entry: Entry, messageApi: MessageInstance, index: number) {
             <div className="relative">
                 <Tooltip placement="topRight" title="Copy to clipboard"><Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>
                 <pre><code className="language-css">{entry.text}</code></pre>
-                <Space size={[0, 2]} wrap>
-                    <Tag color="blue">{entry.source}</Tag>
-                    <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
-                </Space>
-                <Divider />
+                <Tag color="blue">{entry.source}</Tag>
+                <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
             </div>
+            {/* <Divider /> */}
         </li>
     )
 }
 
-function History(entries: Entry[], messageApi: MessageInstance) {
+function History(entries: SearchResult, messageApi: MessageInstance) {
+    if (entries.total < 0) {
+        return <Spin />
+    }
+    else if (entries.total == 0) {
+        return <Empty />
+    }
     return (
         <ul>
-            {entries.map((entry, index) => EntryView(entry, messageApi, index))}
+            {entries.data.map((entry, index) => EntryView(entry, messageApi, index + entries.skip))}
         </ul>
     )
 }
 
 function CountText(count: number) {
     if (count < 0) {
-        return <Divider >Searching...</Divider>;
+        return <Divider orientation="left">Searching...</Divider>;
     }
     return (
-        <Divider orientation="right">Found {count} entries</Divider>
+        <Divider orientation="left">Found {count} entries</Divider>
     )
 }
 
@@ -85,57 +89,74 @@ export function SearchableTextHistory() {
         begin: undefined,
         end: undefined,
         start: 0,
-        size: 100,
+        size: 20,
         skip: 0,
     };
     let [param, setParam] = useState(initParam);
-    let initEntries: Entry[] = [];
-    let [entries, setEntries] = useState(initEntries);
+
+    let initResult: SearchResult = { data: [], skip: 0, total: -1 };
+    let [result, setResult] = useState(initResult);
 
     var initTimerId: any | null = null;
     let [timerId, setTimerId] = useState(initTimerId);
-    let [count, setCount] = useState(0);
+
+    async function s() {
+        let r = await search(param);
+        setResult(r);
+    }
 
     useEffect(() => {
-        setCount(-1);
-        search(initParam, (r) => {
-            mergeResult(r);
+        setResult(initResult);
+        s().then((r) => {
+            return r;
         });
     }, []);
-
-    function mergeResult(result: SearchResult) {
-        // Merge result with existing entries
-        let e = [
-            ...entries.slice(0, result.skip),
-            ...result.data,
-        ];
-        setEntries(e);
-        setCount(result.total);
-    }
 
     function onInput(value: FormEvent<HTMLInputElement>) {
         if (timerId) {
             clearTimeout(timerId);
         }
         setTimerId(setTimeout(() => {
-            setCount(-1);
+            setResult(initResult);
             let p = param;
             p.text = (value.target as HTMLInputElement).value;
             setParam(p);
-            search(param, (r) => {
-                mergeResult(r);
+            s().then((r) => {
+                console.log(r);
+                return r;
             });
         }, 500));
+    }
+
+    function onPagerChange(page: number, pageSize?: number) {
+        let p = param;
+        p.skip = (page - 1) * (pageSize || 20);
+        p.size = pageSize || 20;
+        setParam(p);
+        s().then((r) => {
+            console.log(r);
+            return r;
+        });
+    }
+
+    function Pager() {
+        if (result.total <= 0) {
+            return <div />
+        }
+        return (
+            <Pagination total={result.total} pageSize={param.size} onChange={onPagerChange} />
+        )
     }
 
     return (
         <div>
             {contextHolder}
-            <Input placeholder="input search text" allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} />
-            {CountText(count)}
+            <Input placeholder="input search text" allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} addonAfter={<SettingOutlined />} />
+            {CountText(result.total)}
             <div>
-                {History(entries, messageApi)}
+                {History(result, messageApi)}
             </div>
+            {Pager()}
         </div>
     )
 }
