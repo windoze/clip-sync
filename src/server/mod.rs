@@ -21,7 +21,10 @@ use poem::{
 use serde::{Deserialize, Serialize};
 use tokio::sync::{broadcast::channel, RwLock};
 
-use crate::{server::global_state::GlobalState, APP_ICON};
+use crate::{
+    server::{global_state::GlobalState, search::QueryResult},
+    APP_ICON,
+};
 
 mod auth;
 mod global_state;
@@ -273,7 +276,7 @@ impl From<Params> for QueryParam {
 async fn query(
     req: &Request,
     data: Data<&Arc<RwLock<GlobalState>>>,
-) -> poem::Result<Json<Vec<ClipboardMessage>>> {
+) -> poem::Result<Json<QueryResult>> {
     let params = req.params::<Params>()?;
     debug!("Query: {:?}", params);
     let global_state = data.0.clone();

@@ -1,9 +1,7 @@
 'use client'
 
-
 import '../public/antd.min.css';
 import '../app/globals.css';
-import Image from 'next/image'
 import { Col, Flex, Layout, Row, Tabs } from 'antd';
 import { SearchableTextHistory } from './ui/text-view';
 import { Content, Footer, Header } from 'antd/es/layout/layout';
@@ -34,7 +32,7 @@ export default function Home() {
   const contentStyle = {
     minHeight: 120,
     lineHeight: '120px',
-    // color: '#fff',
+    // color: 'blue',
     // backgroundColor: '#0958d9',
     paddingInline: 48,
   };
@@ -65,7 +63,6 @@ export default function Home() {
         </Header>
         <Content style={contentStyle}>
           <Tabs defaultActiveKey="1" items={items} />
-
         </Content>
         <Footer style={footerStyle}>
           <a href='https://github.com/windoze/clip-sync' ><GithubOutlined /></a>

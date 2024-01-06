@@ -6,7 +6,10 @@ use tokio::{
     sync::broadcast::Sender,
 };
 
-use super::{search::Search, ClipboardMessage, QueryParam, ServerClipboardContent, ServerConfig};
+use super::{
+    search::{QueryResult, Search},
+    ClipboardMessage, QueryParam, ServerClipboardContent, ServerConfig,
+};
 
 pub struct GlobalState {
     sender: Sender<ClipboardMessage>,
@@ -94,12 +97,10 @@ impl GlobalState {
         Ok(())
     }
 
-    pub async fn query(&self, param: QueryParam) -> anyhow::Result<Vec<ClipboardMessage>> {
+    pub async fn query(&self, param: QueryParam) -> anyhow::Result<QueryResult> {
         let search = self.search.clone();
         self.thread_pool
-            .spawn_blocking(move || -> anyhow::Result<Vec<ClipboardMessage>> {
-                search.query(param)
-            })
+            .spawn_blocking(move || -> anyhow::Result<QueryResult> { search.query(param) })
             .await?
     }
 }

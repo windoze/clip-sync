@@ -6,6 +6,14 @@ li {
   margin: 10px 0;
 }
 
+div.spaced {
+  margin: 10px 0;
+}
+
+.ant-picker-ok {
+  display: none !important;
+}
+
 pre {
   font-size: 16px;
   border: 2px solid grey;

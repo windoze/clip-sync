@@ -29,13 +29,13 @@ export async function search(param: SearchParam): Promise<SearchResult> {
     const { text, sources, begin, end, start, size, skip } = param;
     const url = new URL(`${API_URL}/query`);
     if (text) url.searchParams.append("q", text);
-    if (sources && sources.length > 0) url.searchParams.append("sources", sources.join(","));
+    if (sources && sources.length > 0) url.searchParams.append("from", sources.join(","));
     if (begin) url.searchParams.append("begin", begin.toString());
     if (end) url.searchParams.append("end", end.toString());
     if (start) url.searchParams.append("start", start.toString());
     if (size) url.searchParams.append("size", size.toString());
     if (skip) url.searchParams.append("skip", skip.toString());
-    // console.log(url.toString());
+    console.log(url.toString());
     const res = await fetch(url);
     if (res.ok) {
         return await res.json();
