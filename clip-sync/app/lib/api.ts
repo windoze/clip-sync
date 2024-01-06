@@ -22,12 +22,16 @@ export type SearchResult = {
     data: Entry[];
 };
 
-const API_URL = "http://localhost:13000/api";
-// const API_URL = "https://clip.0d0a.com:23000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_ROOT;
 
 export async function search(param: SearchParam): Promise<SearchResult> {
+    let apiRoot = API_URL ? API_URL : "/api/";
+    if (!apiRoot.endsWith("/")) {
+        apiRoot = apiRoot + "/";
+    }
+
     const { text, sources, begin, end, start, size, skip } = param;
-    const url = new URL(`${API_URL}/query`);
+    const url = new URL(`${apiRoot}query`, window.location.origin);
     if (text) url.searchParams.append("q", text);
     if (sources && sources.length > 0) url.searchParams.append("from", sources.join(","));
     if (begin) url.searchParams.append("begin", begin.toString());
@@ -45,7 +49,12 @@ export async function search(param: SearchParam): Promise<SearchResult> {
 }
 
 export async function getDeviceList(): Promise<string[]> {
-    const url = new URL(`${API_URL}/device-list`);
+    let apiRoot = API_URL ? API_URL : "/api/";
+    if (!apiRoot.endsWith("/")) {
+        apiRoot = apiRoot + "/";
+    }
+
+    const url = new URL(`${apiRoot}device-list`, window.location.origin);
     const res = await fetch(url);
     if (res.ok) {
         const json = await res.json();
