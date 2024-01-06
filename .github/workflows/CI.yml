@@ -79,7 +79,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '20.x'
-      - run: cd clip-sync-ui && npm run build
+      - run: cd clip-sync-ui && npm install && npm run build
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
