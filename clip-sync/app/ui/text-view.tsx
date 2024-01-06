@@ -86,28 +86,26 @@ function CountText(count: number) {
     )
 }
 
+const initResult: SearchResult = { data: [], skip: 0, total: -1 };
+const initDeviceList: string[] = [];
+const initTimerId: any | null = null;
+const initParam: SearchParam = {
+    text: '',
+    sources: [],
+    begin: undefined,
+    end: undefined,
+    start: 0,
+    size: 20,
+    skip: 0,
+};
+
 export function SearchableTextHistory() {
     const [messageApi, contextHolder] = message.useMessage();
-    let initParam: SearchParam = {
-        text: '',
-        sources: [],
-        begin: undefined,
-        end: undefined,
-        start: 0,
-        size: 20,
-        skip: 0,
-    };
+
     let [param, setParam] = useState(initParam);
-
-    let initResult: SearchResult = { data: [], skip: 0, total: -1 };
     let [result, setResult] = useState(initResult);
-
-    let initDeviceList: string[] = [];
     let [deviceList, setDeviceList] = useState(initDeviceList);
-
-    var initTimerId: any | null = null;
     let [timerId, setTimerId] = useState(initTimerId);
-
     var [settingsVisible, setSettingsVisible] = useState(false);
 
     async function s(p: SearchParam) {

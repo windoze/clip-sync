@@ -4,8 +4,11 @@ import '../public/antd.min.css';
 import '../app/globals.css';
 import { Col, Flex, Layout, Row, Tabs } from 'antd';
 import { SearchableTextHistory } from './ui/text-view';
-import { Content, Footer, Header } from 'antd/es/layout/layout';
 import { GithubOutlined } from '@ant-design/icons';
+import { CSSProperties } from 'react';
+import Image from 'next/image';
+
+const { Header, Footer, Content } = Layout;
 
 export default function Home() {
   const items = [
@@ -21,7 +24,7 @@ export default function Home() {
     },
   ];
 
-  const headerStyle = {
+  const headerStyle: CSSProperties = {
     textAlign: 'left',
     color: '#fff',
     height: 64,
@@ -29,18 +32,18 @@ export default function Home() {
     lineHeight: '64px',
     backgroundColor: '#87b7f3',
   };
-  const contentStyle = {
+  const contentStyle: CSSProperties = {
     minHeight: 120,
     lineHeight: '120px',
     // color: 'blue',
     // backgroundColor: '#0958d9',
     paddingInline: 48,
   };
-  const footerStyle = {
+  const footerStyle: CSSProperties = {
     textAlign: 'center',
     color: '#fff',
   };
-  const layoutStyle = {
+  const layoutStyle: CSSProperties = {
     borderRadius: 8,
     overflow: 'hidden',
     width: 'calc(100% - 8px)',
@@ -53,7 +56,7 @@ export default function Home() {
         <Header style={headerStyle}>
           <div>
             <Row>
-              <Col span={2}><img src="./favicon.ico" className="inline-block w-12 h-12 mr-2" /></Col>
+              <Col span={2}><Image src={"./favicon.ico"} className={"inline-block w-12 h-12 mr-2"} alt={'ClipSync'} /></Col>
               <Col span={20}><h1 style={headerStyle} className="text-4xl font-bold text-left">Clip Sync</h1></Col>
             </Row>
             <p className="mt-4 text-center">
