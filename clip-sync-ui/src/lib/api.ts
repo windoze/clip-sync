@@ -1,6 +1,3 @@
-import { MessageInstance } from "antd/es/message/interface";
-import exp from "constants";
-
 export type Entry = {
     source: string;
     text: string;
@@ -24,15 +21,12 @@ export type SearchResult = {
     data: Entry[];
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_ROOT;
+const API_URL = import.meta.env.VITE_API_ROOT;
 
 export function getApiRoot(): string {
     let apiRoot = API_URL ? API_URL : "/api/";
     if (!apiRoot.endsWith("/")) {
         apiRoot = apiRoot + "/";
-    }
-    if (typeof window === "undefined") {
-        return apiRoot;
     }
     const url = new URL(`${apiRoot}`, window.location.origin);
     return url.toString();

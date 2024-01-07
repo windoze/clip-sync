@@ -1,9 +1,10 @@
 {
-    "compilerOptions": {
-      "strictNullChecks": true,
-      "module": "NodeNext",
-      "jsx": "react",
-      "esModuleInterop": true
-    },
-    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"]
-  }
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["vite.config.ts"]
+}

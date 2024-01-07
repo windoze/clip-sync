@@ -1,31 +1,22 @@
-'use client'
+import "react-image-gallery/styles/css/image-gallery.css";
+import './App.css'
 
-import '../public/antd.min.css';
-import '../app/globals.css';
-import { Col, Flex, Layout, Row, Tabs, message } from 'antd';
+import { Flex, Layout, Tabs, message } from 'antd';
 import { EntryView, SearchableTextHistory } from './ui/text-view';
 import { GithubOutlined } from '@ant-design/icons';
 import { CSSProperties, useEffect, useState } from 'react';
-import Image from 'next/image';
 import { ImageView } from './ui/image-view';
 import { UtilsView } from './ui/utils-view';
 import { webSocketComponent } from './lib/api';
-import { MessageInstance } from 'antd/es/message/interface';
 
 const { Header, Footer, Content } = Layout;
 
-
-function ActionItem(msg: any) {
-  return
-}
-
-export default function Home() {
+function App() {
   const [messageApi, contextHolder] = message.useMessage();
   let [actions, setActions] = useState<any[]>([]);
 
   function messageBubbleHandler(msg: any) {
     console.log("Page:", msg);
-    let time = new Date(msg.timestamp * 1000);
     messageApi.open({
       type: 'info',
       content: `${msg.source} copied '${msg.text}'`,
@@ -33,7 +24,6 @@ export default function Home() {
     });
     setActions([
       {
-        // label: time.toLocaleTimeString(),
         children: EntryView(msg, messageApi, false),
       },
       ...actions,
@@ -70,17 +60,19 @@ export default function Home() {
   const headerStyle: CSSProperties = {
     textAlign: 'left',
     color: '#fff',
-    height: 64,
+    height: 80,
     paddingInline: 48,
     lineHeight: '64px',
     backgroundColor: '#87b7f3',
+    display: 'flex',
+    alignItems: 'center'
   };
   const contentStyle: CSSProperties = {
-    minHeight: 120,
+    minWidth: 'calc(100vh - 8px)',
+    minHeight: 'calc(100vh - 8px)',
     lineHeight: '120px',
-    // color: 'blue',
-    // backgroundColor: '#0958d9',
     paddingInline: 48,
+    alignItems: 'left'
   };
   const footerStyle: CSSProperties = {
     textAlign: 'center',
@@ -91,19 +83,18 @@ export default function Home() {
     overflow: 'hidden',
     width: 'calc(100% - 8px)',
     maxWidth: 'calc(100% - 8px)',
+    minWidth: 'calc(100vh - 8px)',
+    minHeight: 'calc(100vh - 8px)',
+    verticalAlign: 'top',
   };
 
   return (
-    <Flex gap="middle" vertical justify="center">
+    <Flex gap="middle" vertical justify="center" style={{ minHeight: '100vh', verticalAlign: 'top' }}>
       {contextHolder}
-      <Layout style={layoutStyle}>
+      < Layout style={layoutStyle}>
         <Header style={headerStyle}>
-          <div>
-            <Row>
-              <Col span={2}><a href="https://github.com/windoze/clip-sync" target="_blank"><Image src={"/favicon.ico"} width={64} height={64} className={"inline-block w-12 h-12 mr-2"} alt={'ClipSync'} /></a></Col>
-              <Col span={20}><h1 style={headerStyle} className="text-4xl font-bold text-left">Clip Sync</h1></Col>
-            </Row>
-          </div>
+          <a href="https://github.com/windoze/clip-sync" target="_blank"><img src={"/logo.png"} width={48} height={48} alt={'ClipSync'} /></a>
+          <h1 style={headerStyle}>Clip Sync</h1>
         </Header>
         <Content style={contentStyle}>
           <Tabs defaultActiveKey="1" items={items} />
@@ -111,7 +102,9 @@ export default function Home() {
         <Footer style={footerStyle}>
           <a href='https://github.com/windoze/clip-sync' ><GithubOutlined /></a>
         </Footer>
-      </Layout>
-    </Flex>
+      </Layout >
+    </Flex >
   )
 }
+
+export default App

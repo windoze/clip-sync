@@ -1,11 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Entry, SearchParam, SearchResult, getApiRoot, getDeviceList, search } from '../lib/api';
-import { Button, Divider, Empty, Input, Pagination, DatePicker, Space, Spin, Tag, Tooltip, message, Select } from 'antd';
-import Image from 'next/image';
-import { CopyTwoTone, SearchOutlined, SettingFilled, SettingOutlined } from '@ant-design/icons';
+import { Button, Divider, Empty, Input, Pagination, DatePicker, Space, Spin, Tag, Tooltip, Select } from 'antd';
+import { CopyTwoTone, SearchOutlined, SettingFilled } from '@ant-design/icons';
 import { MessageInstance } from 'antd/es/message/interface';
-import { pages } from 'next/dist/build/templates/app-page';
-import { get } from 'http';
 
 const { RangePicker } = DatePicker;
 
@@ -57,14 +54,16 @@ export function EntryView(entry: Entry, messageApi: MessageInstance, relTime: bo
             <div className="relative">
                 <Tooltip placement="topRight" title="Copy to clipboard"><Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>
                 <pre><code className="language-css">{entry.text}</code></pre>
-                <Tag color="blue">{entry.source}</Tag>
-                <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
+                <div className="flex flex-row">
+                    <Tag color="blue">{entry.source}</Tag>
+                    <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
+                </div>
             </div>
         )
     } else if (entry.imageurl && entry.imageurl.length > 0) {
         let imageUrl = `${getApiRoot()}images/${entry.imageurl}`;
         return (
-            <div className="relative">
+            <div className="relative" style={{ textAlign: 'left' }}>
                 <a href={imageUrl} target="_blank"><picture><img src={imageUrl} alt={imageUrl} width={100} height={100} /></picture></a>
                 <Tag color="blue">{entry.source}</Tag>
                 <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
@@ -246,7 +245,7 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
     }
 
     return (
-        <div>
+        <div style={{minWidth: 'calc(100vh - 8px)'}}>
             <div className="flex flex-row justify-between">
                 <Input placeholder="input search text" allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} />
                 <Button type='primary' ghost icon={<SettingFilled />} onClick={onSettingsClick} />
