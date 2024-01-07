@@ -25,8 +25,8 @@ index-path = "/path/to/index/dir"
 # Websocket client configuration
 # Only used if "websocket-client" is in the roles list
 [websocket-client]
-# Protocol can be "ws" or "wss", depending on whether the server uses TLS
-server-url = "wss://server.example.com/clip-sync"
+# Protocol can be "ws"/"http" or "wss"/"https", depending on whether the server uses TLS
+server-url = "https://server.example.com/"
 # Can be omitted if authentication is not required
 secret = "magicword"
 
