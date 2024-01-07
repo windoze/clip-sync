@@ -1,7 +1,7 @@
 import "react-image-gallery/styles/css/image-gallery.css";
 import './App.css'
 
-import { Flex, Layout, Tabs, message } from 'antd';
+import { Col, Flex, Layout, Row, Tabs, message } from 'antd';
 import { EntryView, SearchableTextHistory } from './ui/text-view';
 import { GithubOutlined } from '@ant-design/icons';
 import { CSSProperties, useEffect, useState } from 'react';
@@ -60,19 +60,17 @@ function App() {
   const headerStyle: CSSProperties = {
     textAlign: 'left',
     color: '#fff',
-    height: 80,
+    height: 64,
     paddingInline: 48,
     lineHeight: '64px',
     backgroundColor: '#87b7f3',
-    display: 'flex',
-    alignItems: 'center'
   };
   const contentStyle: CSSProperties = {
-    minWidth: 'calc(100vh - 8px)',
-    minHeight: 'calc(100vh - 8px)',
+    minHeight: 120,
     lineHeight: '120px',
+    // color: 'blue',
+    // backgroundColor: '#0958d9',
     paddingInline: 48,
-    alignItems: 'left'
   };
   const footerStyle: CSSProperties = {
     textAlign: 'center',
@@ -83,18 +81,19 @@ function App() {
     overflow: 'hidden',
     width: 'calc(100% - 8px)',
     maxWidth: 'calc(100% - 8px)',
-    minWidth: 'calc(100vh - 8px)',
-    minHeight: 'calc(100vh - 8px)',
-    verticalAlign: 'top',
   };
 
   return (
-    <Flex gap="middle" vertical justify="center" style={{ minHeight: '100vh', verticalAlign: 'top' }}>
+    <Flex gap="middle" vertical justify="center">
       {contextHolder}
-      < Layout style={layoutStyle}>
+      <Layout style={layoutStyle}>
         <Header style={headerStyle}>
-          <a href="https://github.com/windoze/clip-sync" target="_blank"><img src={"/logo.png"} width={48} height={48} alt={'ClipSync'} /></a>
-          <h1 style={headerStyle}>Clip Sync</h1>
+          <div>
+            <Row>
+              <Col span={2}><a href="https://github.com/windoze/clip-sync" target="_blank"><img src={"/favicon.ico"} width={64} height={64} className={"inline-block w-12 h-12 mr-2"} alt={'ClipSync'} /></a></Col>
+              <Col span={20}><h1 style={headerStyle} className="text-4xl font-bold text-left">Clip Sync</h1></Col>
+            </Row>
+          </div>
         </Header>
         <Content style={contentStyle}>
           <Tabs defaultActiveKey="1" items={items} />
