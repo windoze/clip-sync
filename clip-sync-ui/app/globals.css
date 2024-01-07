@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "~react-image-gallery/styles/css/image-gallery.css";
+
 li {
   margin: 10px 0;
 }
@@ -58,3 +60,5 @@ pre[class*="language-"] button:hover {
   cursor: pointer;
   background-color: #bcbabb;
 }
+
+

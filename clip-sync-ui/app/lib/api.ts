@@ -63,3 +63,23 @@ export async function getDeviceList(): Promise<string[]> {
         return [];
     }
 }
+
+export async function getImageCollection(name: string): Promise<string[]> {
+    let apiRoot = API_URL ? API_URL : "/api/";
+    if (!apiRoot.endsWith("/")) {
+        apiRoot = apiRoot + "/";
+    }
+
+    const url = new URL(`${apiRoot}collection/${name}`, window.location.origin);
+    const res = await fetch(url);
+    if (res.ok) {
+        const json = await res.json();
+        let images = json as string[];
+
+        return images.map((image) => {
+            return `${apiRoot}images/${image}`;
+        });
+    } else {
+        return [];
+    }
+}

@@ -1,26 +1,24 @@
-use std::{ops::Bound, path::PathBuf, sync::Arc, time::Duration};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use chrono::Utc;
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use poem::{
     endpoint::StaticFilesEndpoint,
-    error::StaticFileError,
     get, handler,
     http::StatusCode,
     listener::{Listener, RustlsCertificate, RustlsConfig, TcpListener},
     middleware::Cors,
     post,
     web::{
-        headers::{HeaderMapExt, Range},
         websocket::{Message, WebSocket},
-        Data, Json, Multipart, Path, StaticFileResponse,
+        Data, Json, Multipart, Path,
     },
-    Body, EndpointExt, IntoResponse, Request, Route, Server,
+    EndpointExt, IntoResponse, Request, Route, Server,
 };
 use tokio::sync::{broadcast::channel, RwLock};
 
-use crate::{server::global_state::GlobalState, APP_ICON};
+use crate::server::global_state::GlobalState;
 
 mod auth;
 mod global_state;
@@ -28,48 +26,6 @@ mod models;
 mod search;
 
 pub use models::*;
-
-#[handler]
-fn fav_icon(req: &Request) -> Result<StaticFileResponse, StaticFileError> {
-    let range = req.headers().typed_get::<Range>();
-    let mut content_range = None;
-    let mut content_length;
-    let body = if let Some((start, end)) = range.and_then(|range| range.iter().next()) {
-        let start = match start {
-            Bound::Included(n) => n,
-            Bound::Excluded(n) => n + 1,
-            Bound::Unbounded => 0,
-        };
-        let end = match end {
-            Bound::Included(n) => n + 1,
-            Bound::Excluded(n) => n,
-            Bound::Unbounded => APP_ICON.len() as u64,
-        };
-        if end < start || end > APP_ICON.len() as u64 {
-            // builder.typed_header(ContentRange::unsatisfied_bytes(length))
-            return Err(StaticFileError::RangeNotSatisfiable {
-                size: APP_ICON.len() as u64,
-            });
-        }
-
-        if start != 0 || end != APP_ICON.len() as u64 {
-            content_range = Some((start..end, APP_ICON.len() as u64));
-        }
-        content_length = end - start;
-        Body::from(&APP_ICON[start as usize..end as usize])
-    } else {
-        content_length = APP_ICON.len() as u64;
-        Body::from(APP_ICON)
-    };
-    Ok(StaticFileResponse::Ok {
-        body,
-        content_length,
-        content_type: Some("image/png".to_string()),
-        etag: None,
-        last_modified: None,
-        content_range,
-    })
-}
 
 #[handler]
 async fn ws(
@@ -246,6 +202,26 @@ async fn upload_image(
     Err(poem::Error::from_status(StatusCode::BAD_REQUEST))
 }
 
+#[handler]
+async fn get_image_collection(
+    Path(name): Path<String>,
+    data: Data<&Arc<RwLock<GlobalState>>>,
+) -> poem::Result<Json<Vec<String>>> {
+    let dir: PathBuf = data.0.read().await.get_image_path().join(&name);
+    let mut ret = Vec::new();
+    let mut entries = tokio::fs::read_dir(&dir).await.map_err(|e| {
+        warn!("Failed to read directory: {}", e);
+        poem::Error::from_status(StatusCode::INTERNAL_SERVER_ERROR)
+    })?;
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        info!("Entry: {:?}", entry);
+        if let Some(filename) = entry.file_name().to_str() {
+            ret.push(format!("{}/{}", name, filename));
+        }
+    }
+    Ok(Json(ret))
+}
+
 fn api(
     args: ServerConfig,
     global_state: Arc<RwLock<GlobalState>>,
@@ -262,6 +238,10 @@ fn api(
             get(get_online_device_list).data(global_state.clone()),
         )
         .at("/query", get(query).data(global_state.clone()))
+        .at(
+            "/collection/:device_id",
+            get(get_image_collection).data(global_state.clone()),
+        )
         .nest(
             "/images",
             StaticFilesEndpoint::new(image_path).show_files_listing(),
@@ -288,7 +268,6 @@ pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
             "/",
             StaticFilesEndpoint::new(args.web_root.as_ref().unwrap()).index_file("index.html"),
         )
-        .at("/favicon.ico", get(fav_icon))
         .nest("/api", api(args.clone(), global_state));
 
     let listener = TcpListener::bind(args.endpoint);
