@@ -23,7 +23,7 @@ export function DeviceGallery(name: string) {
     });
     return (
         <div>
-            <ImageGallery items={imageList} showPlayButton={false} showIndex={true} showFullscreenButton={false} />;
+            <ImageGallery items={imageList} showPlayButton={false} showIndex={true} showFullscreenButton={false} />
         </div>
     );
 }

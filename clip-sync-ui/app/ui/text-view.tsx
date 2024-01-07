@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Entry, SearchParam, SearchResult, getDeviceList, search } from '../lib/api';
+import { Entry, SearchParam, SearchResult, getApiRoot, getDeviceList, search } from '../lib/api';
 import { Button, Divider, Empty, Input, Pagination, DatePicker, Space, Spin, Tag, Tooltip, message, Select } from 'antd';
-
+import Image from 'next/image';
 import { CopyTwoTone, SearchOutlined, SettingFilled, SettingOutlined } from '@ant-design/icons';
 import { MessageInstance } from 'antd/es/message/interface';
 import { pages } from 'next/dist/build/templates/app-page';
@@ -37,7 +37,7 @@ export function getRelativeTimeString(
     return rtf.format(Math.floor(deltaSeconds / divisor), units[unitIndex]);
 }
 
-function EntryView(entry: Entry, messageApi: MessageInstance, index: number) {
+export function EntryView(entry: Entry, messageApi: MessageInstance, relTime: boolean = true) {
     function onCopy() {
         navigator.clipboard.writeText(entry.text);
         messageApi.open({
@@ -49,17 +49,30 @@ function EntryView(entry: Entry, messageApi: MessageInstance, index: number) {
     let time = new Date(entry.timestamp * 1000);
     let timeStrTip = time.toLocaleString();
     let timeStr = getRelativeTimeString(time);
-    return (
-        <li key={index}>
+    if (!relTime) {
+        timeStr = time.toLocaleString();
+    }
+    if (entry.text && entry.text.length > 0) {
+        return (
             <div className="relative">
                 <Tooltip placement="topRight" title="Copy to clipboard"><Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>
                 <pre><code className="language-css">{entry.text}</code></pre>
                 <Tag color="blue">{entry.source}</Tag>
                 <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
             </div>
-            {/* <Divider /> */}
-        </li>
-    )
+        )
+    } else if (entry.imageurl && entry.imageurl.length > 0) {
+        let imageUrl = `${getApiRoot()}images/${entry.imageurl}`;
+        return (
+            <div className="relative">
+                <a href={imageUrl} target="_blank"><picture><img src={imageUrl} alt={imageUrl} width={100} height={100} /></picture></a>
+                <Tag color="blue">{entry.source}</Tag>
+                <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
+            </div>
+        )
+    } else {
+
+    }
 }
 
 function History(entries: SearchResult, messageApi: MessageInstance) {
@@ -69,9 +82,16 @@ function History(entries: SearchResult, messageApi: MessageInstance) {
     else if (entries.total == 0) {
         return <Empty />
     }
+    function item(entry: Entry, index: number) {
+        return (
+            <li key={index}>
+                {EntryView(entry, messageApi)}
+            </li>
+        )
+    }
     return (
         <ul>
-            {entries.data.map((entry, index) => EntryView(entry, messageApi, index + entries.skip))}
+            {entries.data.map((entry, index) => item(entry, index + entries.skip))}
         </ul>
     )
 }
@@ -98,8 +118,7 @@ const initParam: SearchParam = {
     skip: 0,
 };
 
-export function SearchableTextHistory() {
-    const [messageApi, contextHolder] = message.useMessage();
+export function SearchableTextHistory(messageApi: MessageInstance) {
 
     let [param, setParam] = useState(initParam);
     let [result, setResult] = useState(initResult);
@@ -228,7 +247,6 @@ export function SearchableTextHistory() {
 
     return (
         <div>
-            {contextHolder}
             <div className="flex flex-row justify-between">
                 <Input placeholder="input search text" allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} />
                 <Button type='primary' ghost icon={<SettingFilled />} onClick={onSettingsClick} />
