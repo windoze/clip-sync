@@ -76,6 +76,10 @@ impl GlobalState {
     pub async fn add_entry(&self, msg: ClipboardMessage, store: bool) -> anyhow::Result<()> {
         debug!("Publishing message: {:?}", msg);
         self.sender.send(msg.clone())?;
+        if self.validate_message_content(&msg).await.is_err() {
+            warn!("Ignored invalid clipboard entry.");
+            return Ok(());
+        }
         if matches!(msg.entry.content, ServerClipboardContent::Text(_)) {
             let search = self.search.clone();
             self.thread_pool
@@ -101,5 +105,23 @@ impl GlobalState {
         self.thread_pool
             .spawn_blocking(move || -> anyhow::Result<QueryResult> { search.query(param) })
             .await?
+    }
+
+    async fn validate_message_content(&self, msg: &ClipboardMessage) -> anyhow::Result<()> {
+        match &msg.entry.content {
+            ServerClipboardContent::Text(s) => {
+                if s.is_empty() {
+                    anyhow::bail!("Empty clipboard entry, ignored.");
+                }
+            }
+            ServerClipboardContent::ImageUrl(s) => {
+                if s.is_empty() {
+                    anyhow::bail!("Empty clipboard entry, ignored.");
+                }
+
+                // TODO: Test if the image exists.
+            }
+        }
+        Ok(())
     }
 }
