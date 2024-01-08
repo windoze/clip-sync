@@ -119,14 +119,16 @@ async fn ws(
 #[handler]
 async fn get_device_list(data: Data<&Arc<RwLock<GlobalState>>>) -> impl IntoResponse {
     let global_state = data.0.clone();
-    let device_list = global_state.read().await.get_device_list();
+    let mut device_list = global_state.read().await.get_device_list();
+    device_list.sort();
     Json(device_list)
 }
 
 #[handler]
 async fn get_online_device_list(data: Data<&Arc<RwLock<GlobalState>>>) -> impl IntoResponse {
     let global_state = data.0.clone();
-    let device_list = global_state.read().await.get_online_device_list();
+    let mut device_list = global_state.read().await.get_online_device_list();
+    device_list.sort();
     Json(device_list)
 }
 
@@ -219,6 +221,7 @@ async fn get_image_collection(
             ret.push(format!("{}/{}", name, filename));
         }
     }
+    ret.sort();
     Ok(Json(ret))
 }
 
