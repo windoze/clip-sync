@@ -55,9 +55,13 @@ export function EntryView(entry: Entry, messageApi: MessageInstance, relTime: bo
         source = t('systemUtil');
     }
     if (entry.text && entry.text.length > 0) {
+        let copyButton = <Tooltip placement="topRight" title={t('copyTextToClipboard')}> <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>;
+        if (!isSecureContext) {
+            copyButton = <div />;
+        }
         return (
             <div className="relative">
-                <Tooltip placement="topRight" title={t('copyTextToClipboard')}> <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>
+                {copyButton}
                 <pre><code className="language-css">{entry.text}</code></pre>
                 <div className="flex flex-row">
                     <Tag color="blue">{source}</Tag>
