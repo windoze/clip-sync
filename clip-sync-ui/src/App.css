@@ -1,9 +1,7 @@
 
 #root {
-  max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
-  text-align: center;
 }
 
 .logo {
@@ -52,4 +50,9 @@ div.spaced {
 
 .ant-picker-ok {
   display: none !important;
+}
+
+.ant-btn-default:hover, .ant-btn-default:focus {
+  border-color: #bee2e5;
+  color: #fff;
 }

@@ -39,6 +39,14 @@ impl<E: Endpoint> Endpoint for ApiKeyAuthEndpoint<E> {
         if self.api_key.is_none() {
             return self.ep.call(req).await;
         }
+        // Check if api key is in query params or authorization header
+        // We need this because browsers don't support adding authorization headers in websocket.
+        let params = parse_query(req.uri().query().unwrap_or(""));
+        for (key, value) in params {
+            if key == "api-key" && value == self.api_key.as_ref().unwrap() {
+                return self.ep.call(req).await;
+            }
+        }
         if let Some(auth) = req.headers().typed_get::<headers::Authorization<Bearer>>() {
             if auth.0.token() == self.api_key.as_ref().unwrap() {
                 return self.ep.call(req).await;
@@ -46,4 +54,18 @@ impl<E: Endpoint> Endpoint for ApiKeyAuthEndpoint<E> {
         }
         Err(poem::Error::from_status(StatusCode::UNAUTHORIZED))
     }
+}
+
+type QueryParam<'a> = (&'a str, &'a str);
+type QueryParams<'a> = Vec<QueryParam<'a>>;
+
+fn parse_query(query: &str) -> QueryParams {
+    let mut params = Vec::new();
+    for q in query.split('&') {
+        let q: Vec<&str> = q.split('=').collect();
+        if q.len() == 2 {
+            params.push((q[0], q[1]));
+        }
+    }
+    params
 }

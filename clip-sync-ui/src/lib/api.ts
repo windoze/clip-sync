@@ -10,7 +10,6 @@ export type SearchParam = {
     sources: string[];
     begin: number | undefined;
     end: number | undefined;
-    start: number | undefined;
     size: number | undefined;
     skip: number | undefined;
 };
@@ -33,13 +32,12 @@ export function getApiRoot(): string {
 }
 
 export async function search(param: SearchParam): Promise<SearchResult> {
-    const { text, sources, begin, end, start, size, skip } = param;
+    const { text, sources, begin, end, size, skip } = param;
     const url = new URL(`${getApiRoot()}query`, window.location.origin);
     if (text) url.searchParams.append("q", text);
     if (sources && sources.length > 0) url.searchParams.append("from", sources.join(","));
     if (begin) url.searchParams.append("begin", begin.toString());
     if (end) url.searchParams.append("end", end.toString());
-    if (start) url.searchParams.append("start", start.toString());
     if (size) url.searchParams.append("size", size.toString());
     if (skip) url.searchParams.append("skip", skip.toString());
     console.log(url.toString());
