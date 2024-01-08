@@ -103,7 +103,7 @@ function App() {
           <div>
             <Row>
               <Col span={2}><a href="https://github.com/windoze/clip-sync" target="_blank"><img src={"/favicon.ico"} width={64} height={64} className={"inline-block w-12 h-12 mr-2"} alt={'ClipSync'} /></a></Col>
-              <Col span={20}><h1 style={headerStyle} className="text-4xl font-bold text-left">Clip Sync</h1></Col>
+              <Col span={20}><h1 style={headerStyle} className="text-4xl font-bold text-left">Clip&nbsp;Sync</h1></Col>
             </Row>
           </div>
         </Header>
