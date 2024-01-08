@@ -59,7 +59,7 @@ export function ImageView() {
     }, []);
 
     return (
-        <div style={{ minHeight: '100vh', verticalAlign: 'top' }}>
+        <div style={{ verticalAlign: 'top' }}>
             <Menu onClick={onClick} selectedKeys={[current]} mode="horizontal" items={deviceList} />
             <Divider type='horizontal' ></Divider>
             {DeviceGallery(imageList)}

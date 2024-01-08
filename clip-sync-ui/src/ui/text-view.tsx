@@ -245,7 +245,7 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
     }
 
     return (
-        <div style={{minWidth: 'calc(100vh - 8px)'}}>
+        <div>
             <div className="flex flex-row justify-between">
                 <Input placeholder="input search text" allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} />
                 <Button type='primary' ghost icon={<SettingFilled />} onClick={onSettingsClick} />

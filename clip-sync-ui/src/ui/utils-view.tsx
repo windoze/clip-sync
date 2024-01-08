@@ -18,7 +18,7 @@ export function UtilsView(messageApi: MessageInstance, actions: any[]) {
         });
     }
     return (
-        <div style={{ minHeight: '100vh' }}>
+        <div>
             <p>Send text to clipboards</p>
             <div>
                 <TextArea rows={4} id="copy-text" placeholder="input text" allowClear autoFocus />
