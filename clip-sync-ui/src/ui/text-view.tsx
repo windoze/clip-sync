@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Entry, SearchParam, SearchResult, getApiRoot, getDeviceList, search } from '../lib/api';
-import { Button, Divider, Empty, Input, Pagination, DatePicker, Space, Spin, Tag, Tooltip, Select } from 'antd';
+import { Button, Divider, Empty, Input, Pagination, DatePicker, Space, Spin, Tag, Tooltip, Select, Alert } from 'antd';
 import { CopyTwoTone, SearchOutlined, SettingFilled } from '@ant-design/icons';
 import { MessageInstance } from 'antd/es/message/interface';
+import { useTranslation } from 'react-i18next';
 
 const { RangePicker } = DatePicker;
 
@@ -34,12 +35,12 @@ export function getRelativeTimeString(
     return rtf.format(Math.floor(deltaSeconds / divisor), units[unitIndex]);
 }
 
-export function EntryView(entry: Entry, messageApi: MessageInstance, relTime: boolean = true) {
+export function EntryView(entry: Entry, messageApi: MessageInstance, relTime: boolean = true, t: any) {
     function onCopy() {
         navigator.clipboard.writeText(entry.text);
         messageApi.open({
             type: 'success',
-            content: 'Copied to clipboard',
+            content: t('copiedMessage'),
             duration: 3,
         });
     }
@@ -49,13 +50,17 @@ export function EntryView(entry: Entry, messageApi: MessageInstance, relTime: bo
     if (!relTime) {
         timeStr = time.toLocaleString();
     }
+    let source = entry.source;
+    if (source.startsWith('$')) {
+        source = t('systemUtil');
+    }
     if (entry.text && entry.text.length > 0) {
         return (
             <div className="relative">
-                <Tooltip placement="topRight" title="Copy to clipboard"><Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>
+                <Tooltip placement="topRight" title={t('copyTextToClipboard')}> <Button className="absolute flex flex-row  top-0 right-0 p-2" onClick={onCopy} ><CopyTwoTone twoToneColor="#87b7f3" /></Button></Tooltip>
                 <pre><code className="language-css">{entry.text}</code></pre>
                 <div className="flex flex-row">
-                    <Tag color="blue">{entry.source}</Tag>
+                    <Tag color="blue">{source}</Tag>
                     <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
                 </div>
             </div>
@@ -65,16 +70,21 @@ export function EntryView(entry: Entry, messageApi: MessageInstance, relTime: bo
         return (
             <div className="relative" style={{ textAlign: 'left' }}>
                 <a href={imageUrl} target="_blank"><picture><img src={imageUrl} alt={imageUrl} width={100} height={100} /></picture></a>
-                <Tag color="blue">{entry.source}</Tag>
+                <Tag color="blue">{source}</Tag>
                 <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
             </div>
         )
     } else {
-
+        return (<div>
+            <Alert message={t("unsupportedEntry")} type="warning" showIcon />
+            <Tag color="blue">{source}</Tag>
+            <Tooltip placement="bottomLeft" title={timeStrTip}><Tag color="green">{timeStr}</Tag></Tooltip>
+        </div>
+        );
     }
 }
 
-function History(entries: SearchResult, messageApi: MessageInstance) {
+function History(entries: SearchResult, messageApi: MessageInstance, t: any) {
     if (entries.total < 0) {
         return <Spin />
     }
@@ -83,8 +93,9 @@ function History(entries: SearchResult, messageApi: MessageInstance) {
     }
     function item(entry: Entry, index: number) {
         return (
+            console.log('entry', index, entry),
             <li key={index}>
-                {EntryView(entry, messageApi)}
+                {EntryView(entry, messageApi, true, t)}
             </li>
         )
     }
@@ -96,11 +107,13 @@ function History(entries: SearchResult, messageApi: MessageInstance) {
 }
 
 function CountText(count: number) {
+    const { t } = useTranslation();
+
     if (count < 0) {
         return <Divider>Searching...</Divider>;
     }
     return (
-        <Divider>Found {count} entries</Divider>
+        <Divider>{t('resultCount', { count: count })}</Divider>
     )
 }
 
@@ -112,12 +125,12 @@ const initParam: SearchParam = {
     sources: [],
     begin: undefined,
     end: undefined,
-    start: 0,
     size: 20,
     skip: 0,
 };
 
 export function SearchableTextHistory(messageApi: MessageInstance) {
+    const { t } = useTranslation();
 
     let [param, setParam] = useState(initParam);
     let [result, setResult] = useState(initResult);
@@ -126,7 +139,14 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
     var [settingsVisible, setSettingsVisible] = useState(false);
 
     async function s(p: SearchParam) {
+        console.log('searching', p);
+        let skip = p.skip ? p.skip : 0;
         let r = await search(p);
+        if ((r.total > 0) && (r.total <= skip)) {
+            // skip too large, reset to 0 and search again
+            p.skip = 0;
+            r = await search(p);
+        }
         setParam(p);
         setResult(r);
     }
@@ -158,8 +178,8 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
 
     function onPagerChange(page: number, pageSize?: number) {
         let p = { ...param };
-        p.skip = (page - 1) * (pageSize || 20);
-        p.size = pageSize || 20;
+        p.size = pageSize ? pageSize : 20;
+        p.skip = (page - 1) * p.size;
         setParam(p);
         s(p).then((r) => {
             return r;
@@ -171,7 +191,7 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
             return <div />
         }
         return (
-            <Pagination total={result.total} pageSize={param.size} onChange={onPagerChange} />
+            <Pagination total={result.total} pageSize={20} showSizeChanger={false} onChange={onPagerChange} />
         )
     }
 
@@ -226,7 +246,7 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
                 <Select
                     mode="multiple"
                     style={{ width: '100%' }}
-                    placeholder="Copied from..."
+                    placeholder={t("deviceListPlaceholder")}
                     onChange={handleDeviceChange}
                     options={options}
                     optionRender={(option) => (
@@ -239,7 +259,7 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
                     )}
                 />
                 <Divider type='vertical' ></Divider>
-                <RangePicker showTime changeOnBlur={true} style={{ color: '#888888' }} onCalendarChange={onRangeChange} />
+                <RangePicker showTime placeholder={[t('timeRangeStart'), t('timeRangeEnd')]} changeOnBlur={true} style={{ color: '#888888' }} onCalendarChange={onRangeChange} />
             </div>
         )
     }
@@ -247,13 +267,13 @@ export function SearchableTextHistory(messageApi: MessageInstance) {
     return (
         <div>
             <div className="flex flex-row justify-between">
-                <Input placeholder="input search text" allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} />
+                <Input placeholder={t("searchPlaceholder")} allowClear onChange={onInput} autoFocus addonBefore={<SearchOutlined />} />
                 <Button type='primary' ghost icon={<SettingFilled />} onClick={onSettingsClick} />
             </div>
             {SettingsPane()}
             {CountText(result.total)}
             <div>
-                {History(result, messageApi)}
+                {History(result, messageApi, t)}
             </div>
             {Pager()}
         </div>

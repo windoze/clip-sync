@@ -8,23 +8,35 @@ import { CSSProperties, useEffect, useState } from 'react';
 import { ImageView } from './ui/image-view';
 import { UtilsView } from './ui/utils-view';
 import { webSocketComponent } from './lib/api';
+import { useTranslation } from "react-i18next";
+import './i18n.ts';
 
 const { Header, Footer, Content } = Layout;
 
 function App() {
+  const { t } = useTranslation();
+
   const [messageApi, contextHolder] = message.useMessage();
   let [actions, setActions] = useState<any[]>([]);
 
   function messageBubbleHandler(msg: any) {
     console.log("Page:", msg);
-    messageApi.open({
-      type: 'info',
-      content: `${msg.source} copied '${msg.text}'`,
-      duration: 3,
-    });
+    if (msg.text) {
+      messageApi.open({
+        type: 'info',
+        content: t("copyTextMessage", { source: msg.source, text: msg.text }),
+        duration: 3,
+      });
+    } else if (msg.imageurl) {
+      messageApi.open({
+        type: 'info',
+        content: t("copyImageMessage", { source: msg.source }),
+        duration: 3,
+      });
+    }
     setActions([
       {
-        children: EntryView(msg, messageApi, false),
+        children: EntryView(msg, messageApi, false, t),
       },
       ...actions,
     ]);
@@ -42,17 +54,17 @@ function App() {
   const items = [
     {
       key: '1',
-      label: 'Text',
+      label: t('labelText'),
       children: SearchableTextHistory(messageApi),
     },
     {
       key: '2',
-      label: 'Image',
+      label: t('labelImage'),
       children: ImageView(),
     },
     {
       key: '3',
-      label: 'Utilities',
+      label: t('labelUtils'),
       children: UtilsView(messageApi, actions),
     },
   ];

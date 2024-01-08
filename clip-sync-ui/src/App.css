@@ -51,3 +51,8 @@ div.spaced {
 .ant-picker-ok {
   display: none !important;
 }
+
+.ant-btn-default:hover, .ant-btn-default:focus {
+  border-color: #bee2e5;
+  color: #fff;
+}
