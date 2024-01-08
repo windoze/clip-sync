@@ -1,12 +1,17 @@
+name: Rust CI
+
 on:
   push:
+    paths-ignore:
+      - "clip-sync-ui/**"
     branches:
       - "**"
   pull_request:
+    paths-ignore:
+      - "clip-sync-ui/**"
     branches:
       - main
   workflow_dispatch:
-name: CI
 
 jobs:
   check_n_build_m:
@@ -58,7 +63,6 @@ jobs:
   check_n_build_l:
     name: Check and Build on Linux
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
@@ -76,10 +80,6 @@ jobs:
           cargo test
           cargo clippy -- -D warnings
           cargo build --verbose --release
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-      - run: cd clip-sync-ui && npm install && npm run build
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
@@ -90,6 +90,16 @@ jobs:
           retention-days: 14
           name: clip-sync-x86_64-linux-gnu
           path: target/release/clip-sync
+
+  check_n_build_ui:
+    name: Check and Build UI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+      - run: cd clip-sync-ui && npm install && npm run build
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14

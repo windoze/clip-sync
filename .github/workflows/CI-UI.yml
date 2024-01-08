@@ -1,0 +1,29 @@
+name: UI CI
+
+on:
+  push:
+    paths:
+      - "clip-sync-ui/**"
+    branches:
+      - "**"
+  pull_request:
+    paths:
+      - "clip-sync-ui/**"
+    branches:
+      - main
+  workflow_dispatch:
+jobs:
+  check_n_build_ui:
+    name: Check and Build UI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+      - run: cd clip-sync-ui && npm install && npm run build
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-ui-dist
+          path: clip-sync-ui/dist/
