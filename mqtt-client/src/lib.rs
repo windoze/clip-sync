@@ -35,7 +35,7 @@ impl ClipboardSource for MqttSubscriber {
         loop {
             match self.eventloop.poll().await {
                 Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(p))) => {
-                    let data: ClipboardRecord = serde_json::from_slice(&p.payload)?;
+                    let data: ClipboardRecord = bincode::deserialize(&p.payload)?;
                     if data.source == self.device_id {
                         debug!("Skipping clipboard update from self");
                         continue;
@@ -68,7 +68,7 @@ impl MqttPublisher {
 
 impl ClipboardSink for MqttPublisher {
     async fn publish(&mut self, data: Option<ClipboardRecord>) -> anyhow::Result<()> {
-        if let Some(data) = data.map(|d| serde_json::to_string(&d).unwrap()) {
+        if let Some(data) = data.map(|d| bincode::serialize(&d).unwrap()) {
             self.client
                 .publish(self.topic.clone(), QoS::AtLeastOnce, false, data)
                 .await
@@ -97,6 +97,7 @@ impl ClipSyncClient for MqttClipSyncClient {
             args.mqtt_server_addr,
             args.mqtt_server_port,
         );
+        options.set_max_packet_size(1024 * 1024 * 100, 1024 * 1024 * 100); // 100 MB
 
         if args.mqtt_username.is_some() || args.mqtt_password.is_some() {
             options.set_credentials(

@@ -11,6 +11,7 @@
     "aarch",
     "antd",
     "arboard",
+    "bincode",
     "Caser",
     "clippy",
     "clipsync",
