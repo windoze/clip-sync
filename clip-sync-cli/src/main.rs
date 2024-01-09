@@ -20,7 +20,7 @@ enum Commands {
     #[command(arg_required_else_help = true)]
     SendImage {
         /// Path to image file to send, omit to read from stdin
-        #[arg(short, long)]
+        #[clap(index = 1)]
         path: Option<PathBuf>,
     },
     /// Monitor clipboard content
@@ -59,6 +59,10 @@ struct Cli {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    env_logger::Builder::new()
+        .filter_level(cli.verbose.log_level_filter())
+        .filter_module("tantivy", log::LevelFilter::Warn) // Tantivy is too talky at the INFO level
+        .init();
     let mut args = clip_sync_config::parse_config(cli.config_path)?;
     let (sender, clipboard_publisher_receiver) = tokio::sync::mpsc::channel(10);
     let (clipboard_subscriber_sender, mut receiver) = tokio::sync::mpsc::channel(10);
