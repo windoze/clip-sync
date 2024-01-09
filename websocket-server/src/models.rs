@@ -1,6 +1,7 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use chrono::{DateTime, TimeZone, Utc};
+use client_interface::ClipboardMessage;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -15,32 +16,6 @@ pub struct ServerConfig {
     pub web_root: Option<PathBuf>,
     pub index_path: Option<PathBuf>,
     pub image_path: Option<PathBuf>,
-}
-
-fn default_timestamp() -> i64 {
-    Utc::now().timestamp()
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ClipboardMessage {
-    #[serde(flatten)]
-    pub entry: ServerClipboardRecord,
-    #[serde(default = "default_timestamp")]
-    pub timestamp: i64,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ServerClipboardRecord {
-    pub source: String,
-    #[serde(flatten)]
-    pub content: ServerClipboardContent,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ServerClipboardContent {
-    Text(String),
-    ImageUrl(String),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -59,6 +34,15 @@ pub struct Params {
     pub skip: Option<usize>,
     #[serde(default)]
     pub sort: Option<String>,
+}
+
+pub struct QueryParam {
+    pub query: Option<String>,
+    pub sources: HashSet<String>,
+    pub time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
+    pub skip: usize,
+    pub size: usize,
+    pub sort_by_score: bool,
 }
 
 impl From<Params> for QueryParam {
@@ -89,15 +73,6 @@ impl From<Params> for QueryParam {
             sort_by_score: val.sort.unwrap_or("time".to_string()) == "score",
         }
     }
-}
-
-pub struct QueryParam {
-    pub query: Option<String>,
-    pub sources: HashSet<String>,
-    pub time_range: Option<(DateTime<Utc>, DateTime<Utc>)>,
-    pub skip: usize,
-    pub size: usize,
-    pub sort_by_score: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

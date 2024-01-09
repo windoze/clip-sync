@@ -32,13 +32,28 @@ jobs:
           rustup target add aarch64-apple-darwin
           cargo build --verbose --release --target aarch64-apple-darwin
           cargo build --verbose --release
-          lipo -create -output clip-sync target/release/clip-sync target/aarch64-apple-darwin/release/clip-sync
-
+          lipo -create -output target/clip-sync target/release/clip-sync target/aarch64-apple-darwin/release/clip-sync
+          cargo build --verbose --release --target aarch64-apple-darwin --package clip-sync-cli
+          cargo build --verbose --release --package clip-sync-cli
+          lipo -create -output target/clip-sync-cli target/release/clip-sync-cli target/aarch64-apple-darwin/release/clip-sync-cli
+          cargo build --verbose --release --target aarch64-apple-darwin --package clip-sync-server
+          cargo build --verbose --release --package clip-sync-server
+          lipo -create -output target/clip-sync-server target/release/clip-sync-server target/aarch64-apple-darwin/release/clip-sync-server
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
           name: clip-sync-universal-apple-darwin
-          path: clip-sync
+          path: target/clip-sync
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-cli-universal-apple-darwin
+          path: target/clip-sync-cli
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-universal-apple-darwin
+          path: target/clip-sync-server
 
   check_n_build_w:
     name: Check and Build on Windows
@@ -54,11 +69,23 @@ jobs:
           cargo test
           cargo clippy -- -D warnings
           cargo build --verbose --release
+          cargo build --verbose --release --package clip-sync-cli
+          cargo build --verbose --release --package clip-sync-server
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
           name: clip-sync-x86_64-windows-msvc
           path: target/release/clip-sync.exe
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-cli-x86_64-windows-msvc
+          path: target/release/clip-sync-cli.exe
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-x86_64-windows-msvc
+          path: target/release/clip-sync-server.exe
 
   check_n_build_l:
     name: Check and Build on Linux
@@ -70,38 +97,27 @@ jobs:
           toolchain: stable
           components: rustfmt,clippy
       - run: |
-          cargo fmt --check
-          cargo clippy --no-default-features --features server-only -- -D warnings
           sudo apt-get -y update
-          sudo apt-get -y install musl-tools musl-dev perl
+          sudo apt-get -y install musl-tools musl-dev perl libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
           rustup target add x86_64-unknown-linux-musl
-          cargo build --no-default-features --features server-only --verbose --release --target x86_64-unknown-linux-musl
-          sudo apt-get install -y libdbus-1-dev pkg-config libxcb1-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
-          cargo test
+          cargo fmt --check
           cargo clippy -- -D warnings
+          cargo test
           cargo build --verbose --release
-      - uses: actions/upload-artifact@v3
-        with:
-          retention-days: 14
-          name: clip-sync-server-x86_64-linux-musl
-          path: target/x86_64-unknown-linux-musl/release/clip-sync
+          cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-server
+          cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-cli
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
           name: clip-sync-x86_64-linux-gnu
           path: target/release/clip-sync
-
-  check_n_build_ui:
-    name: Check and Build UI
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-      - run: cd clip-sync-ui && npm install && npm run build
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
-          name: clip-sync-server-ui-dist
-          path: clip-sync-ui/dist/
+          name: clip-sync-cli-x86_64-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/clip-sync-cli
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-x86_64-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/clip-sync-server

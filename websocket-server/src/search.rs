@@ -1,5 +1,6 @@
 use std::{collections::HashSet, path::PathBuf};
 
+use client_interface::{ServerClipboardContent, ServerClipboardRecord};
 use log::debug;
 use tantivy::{
     collector::{Count, FruitHandle, MultiCollector, TopDocs},
@@ -13,9 +14,7 @@ use tantivy::{
     DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
 };
 
-use super::{
-    ClipboardMessage, QueryParam, QueryResult, ServerClipboardContent, ServerClipboardRecord,
-};
+use super::{ClipboardMessage, QueryParam, QueryResult};
 
 const TOKENIZER_NAME: &str = "ngram_m_n";
 

@@ -1,4 +1,5 @@
 {
+  "rust-analyzer.check.allTargets": false,
   "editor.formatOnSave": true,
   "[toml]": {
     "editor.formatOnSave": false
@@ -7,23 +8,31 @@
     "editor.formatOnSave": false
   },
   "cSpell.words": [
+    "aarch",
     "antd",
     "arboard",
     "Caser",
+    "clippy",
     "clipsync",
     "dioxus",
+    "dtolnay",
     "evenodd",
     "Freqs",
     "gethostname",
     "jieba",
+    "libdbus",
     "libxcb",
+    "lipo",
     "Mmap",
     "mqtt",
+    "msvc",
     "Ngram",
     "oninput",
     "onsubmit",
     "rumqttc",
+    "rustfmt",
     "rustls",
+    "rustup",
     "stylesheet",
     "tungstenite",
     "webbrowser",

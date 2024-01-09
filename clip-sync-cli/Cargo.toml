@@ -1,0 +1,44 @@
+[package]
+name = "clip-sync-cli"
+version = "0.6.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+clap-verbosity-flag = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "fs", "macros"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+toml = { workspace = true }
+platform-dirs = { workspace = true }
+futures-util = { workspace = true }
+chrono = { workspace = true }
+reqwest = { workspace = true, features = ["json", "multipart"] }
+image = { workspace = true }
+
+url = { workspace = true, optional = true }
+webbrowser = { workspace = true, optional = true }
+
+clip-sync-config = { workspace = true }
+client-interface = { workspace = true }
+mqtt-client = { workspace = true, optional = true }
+websocket-client = { workspace = true, optional = true }
+
+[features]
+default = ["websocket", "mqtt"]
+mqtt = [
+    "mqtt-client",
+    "clip-sync-config/mqtt",
+]
+websocket = [
+    "websocket-client",
+    "clip-sync-config/websocket",
+    "client-interface/websocket",
+]
+
+[target.'cfg(target_env="musl")'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }

@@ -10,8 +10,8 @@ ARG TARGETPLATFORM
 COPY --from=xx / /
 WORKDIR /usr/src/
 COPY . ./
-RUN cargo build --release --no-default-features --features server-only --target=$(xx-info march)-unknown-linux-musl && \
-    cp /usr/src/target/$(xx-info march)-unknown-linux-musl/release/clip-sync /
+RUN cargo build --package clip-sync-server --target=$(xx-info march)-unknown-linux-musl && \
+    cp /usr/src/target/$(xx-info march)-unknown-linux-musl/release/clip-sync-server /clip-sync
 
 FROM node:alpine AS ui-builder
 WORKDIR /usr/src/clip-sync
