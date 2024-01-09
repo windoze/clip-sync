@@ -36,6 +36,9 @@ jobs:
           cargo build --verbose --release --target aarch64-apple-darwin --package clip-sync-cli
           cargo build --verbose --release --package clip-sync-cli
           lipo -create -output target/clip-sync-cli target/release/clip-sync-cli target/aarch64-apple-darwin/release/clip-sync-cli
+          cargo build --verbose --release --target aarch64-apple-darwin --package clip-sync-server
+          cargo build --verbose --release --package clip-sync-server
+          lipo -create -output target/clip-sync-server target/release/clip-sync-server target/aarch64-apple-darwin/release/clip-sync-server
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
@@ -46,6 +49,11 @@ jobs:
           retention-days: 14
           name: clip-sync-cli-universal-apple-darwin
           path: target/clip-sync-cli
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-universal-apple-darwin
+          path: target/clip-sync-server
 
   check_n_build_w:
     name: Check and Build on Windows
@@ -62,6 +70,7 @@ jobs:
           cargo clippy -- -D warnings
           cargo build --verbose --release
           cargo build --verbose --release --package clip-sync-cli
+          cargo build --verbose --release --package clip-sync-server
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
@@ -72,6 +81,11 @@ jobs:
           retention-days: 14
           name: clip-sync-cli-x86_64-windows-msvc
           path: target/release/clip-sync-cli.exe
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-x86_64-windows-msvc
+          path: target/release/clip-sync-server.exe
 
   check_n_build_l:
     name: Check and Build on Linux
@@ -89,14 +103,9 @@ jobs:
           cargo fmt --check
           cargo clippy -- -D warnings
           cargo test
-          cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-server
           cargo build --verbose --release
+          cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-server
           cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-cli
-      - uses: actions/upload-artifact@v3
-        with:
-          retention-days: 14
-          name: clip-sync-server-x86_64-linux-musl
-          path: target/x86_64-unknown-linux-musl/release/clip-sync-server
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
@@ -107,3 +116,8 @@ jobs:
           retention-days: 14
           name: clip-sync-cli-x86_64-linux-musl
           path: target/x86_64-unknown-linux-musl/release/clip-sync-cli
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-server-x86_64-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/clip-sync-server
