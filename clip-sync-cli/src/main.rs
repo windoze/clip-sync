@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 
 use clap::{Parser, Subcommand};
 
@@ -67,21 +67,28 @@ async fn main() -> anyhow::Result<()> {
     let (sender, clipboard_publisher_receiver) = tokio::sync::mpsc::channel(10);
     let (clipboard_subscriber_sender, mut receiver) = tokio::sync::mpsc::channel(10);
 
-    let client_id = if args.roles.contains(&("websocket-client").to_string()) {
+    let shutdown = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    let (client_id, join_handler) = if args.roles.contains(&("websocket-client").to_string()) {
         args.websocket_client.client_id = Some("$cli".to_string());
         let (client_id, source, sink) =
             websocket_client::WebsocketClipSyncClient::connect(args.websocket_client).await?;
         let client_id_clone = client_id.clone();
-        tokio::spawn(async move {
-            let publisher_task = client::clipboard_publisher(sink, clipboard_publisher_receiver);
-            let subscriber_task =
-                client::clipboard_subscriber(source, clipboard_subscriber_sender, client_id_clone);
+        let join_handler = tokio::spawn(async move {
+            let publisher_task =
+                client::clipboard_publisher(sink, clipboard_publisher_receiver, shutdown.clone());
+            let subscriber_task = client::clipboard_subscriber(
+                source,
+                clipboard_subscriber_sender,
+                client_id_clone,
+                shutdown.clone(),
+            );
 
             let (r1, r2) = tokio::join!(publisher_task, subscriber_task);
-            r1.unwrap();
-            r2.unwrap();
+            r1.ok();
+            r2.ok();
         });
-        client_id
+        (client_id, join_handler)
     } else {
         #[cfg(feature = "mqtt")]
         if args.roles.contains(&("mqtt-client").to_string()) {
@@ -89,20 +96,24 @@ async fn main() -> anyhow::Result<()> {
             let (client_id, source, sink) =
                 mqtt_client::MqttClipSyncClient::connect(args.mqtt_client).await?;
             let client_id_clone = client_id.clone();
-            tokio::spawn(async move {
-                let publisher_task =
-                    client::clipboard_publisher(sink, clipboard_publisher_receiver);
+            let join_handler = tokio::spawn(async move {
+                let publisher_task = client::clipboard_publisher(
+                    sink,
+                    clipboard_publisher_receiver,
+                    shutdown.clone(),
+                );
                 let subscriber_task = client::clipboard_subscriber(
                     source,
                     clipboard_subscriber_sender,
                     client_id_clone,
+                    shutdown.clone(),
                 );
 
                 let (r1, r2) = tokio::join!(publisher_task, subscriber_task);
-                r1.unwrap();
-                r2.unwrap();
+                r1.ok();
+                r2.ok();
             });
-            client_id
+            (client_id, join_handler)
         } else {
             panic!("No client role specified");
         }
@@ -116,33 +127,48 @@ async fn main() -> anyhow::Result<()> {
                 let path = std::path::Path::new(if path.is_empty() { "/dev/stdin" } else { path });
                 let text = std::fs::read_to_string(path)?;
                 sender
-                    .send(client_interface::ClipboardRecord {
-                        source: client_id,
-                        content: client_interface::ClipboardContent::Text(text),
-                    })
+                    .send(
+                        client_interface::ClipboardRecord {
+                            source: client_id,
+                            content: client_interface::ClipboardContent::Text(text),
+                        }
+                        .into(),
+                    )
                     .await?;
             } else {
                 sender
-                    .send(client_interface::ClipboardRecord {
-                        source: client_id,
-                        content: client_interface::ClipboardContent::Text(text_or_file),
-                    })
+                    .send(
+                        client_interface::ClipboardRecord {
+                            source: client_id,
+                            content: client_interface::ClipboardContent::Text(text_or_file),
+                        }
+                        .into(),
+                    )
                     .await?;
             }
+            sender.send(None).await?;
+            receiver.close();
+            join_handler.await?;
         }
         Commands::SendImage { path } => {
             let path = path.unwrap_or_else(|| PathBuf::from("/dev/stdin"));
             let image = image::open(path)?.into_rgba8();
             sender
-                .send(client_interface::ClipboardRecord {
-                    source: client_id,
-                    content: client_interface::ClipboardContent::Image(ImageData {
-                        width: image.width() as usize,
-                        height: image.height() as usize,
-                        data: image.into_raw(),
-                    }),
-                })
+                .send(
+                    client_interface::ClipboardRecord {
+                        source: client_id,
+                        content: client_interface::ClipboardContent::Image(ImageData {
+                            width: image.width() as usize,
+                            height: image.height() as usize,
+                            data: image.into_raw(),
+                        }),
+                    }
+                    .into(),
+                )
                 .await?;
+            sender.send(None).await?;
+            receiver.close();
+            join_handler.await?;
         }
         Commands::Monitor {
             output,
@@ -155,7 +181,9 @@ async fn main() -> anyhow::Result<()> {
             let mut image_index = 0;
             let mut output = tokio::fs::File::create(output).await?;
             loop {
-                let record = receiver.recv().await.unwrap();
+                let Some(record) = receiver.recv().await else {
+                    break;
+                };
                 match record.content {
                     client_interface::ClipboardContent::Text(text) => {
                         let mut v = vec![];
