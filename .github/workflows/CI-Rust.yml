@@ -91,7 +91,7 @@ jobs:
           cargo test
           cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-server
           cargo build --verbose --release
-          cargo build --verbose --release --package clip-sync-cli
+          cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-cli
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
@@ -105,21 +105,5 @@ jobs:
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
-          name: clip-sync-cli-x86_64-linux-gnu
-          path: target/release/clip-sync-cli
-
-
-  check_n_build_ui:
-    name: Check and Build UI
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '20.x'
-      - run: cd clip-sync-ui && npm install && npm run build
-      - uses: actions/upload-artifact@v3
-        with:
-          retention-days: 14
-          name: clip-sync-server-ui-dist
-          path: clip-sync-ui/dist/
+          name: clip-sync-cli-x86_64-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/clip-sync-cli

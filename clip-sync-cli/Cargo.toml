@@ -39,3 +39,6 @@ websocket = [
     "clip-sync-config/websocket",
     "client-interface/websocket",
 ]
+
+[target.'cfg(target_env="musl")'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
