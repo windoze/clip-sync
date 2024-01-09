@@ -5,22 +5,12 @@ use std::{
 
 use arboard::Clipboard;
 use clipboard_master::{CallbackResult, ClipboardHandler, Master};
-use futures::Future;
 use log::{debug, info, trace, warn};
 use tokio::sync::mpsc::{Receiver, Sender};
 
-use crate::{ClipboardContent, ClipboardRecord, ImageData};
-
-pub trait ClipboardSource {
-    fn poll(&mut self) -> impl Future<Output = anyhow::Result<ClipboardRecord>>;
-}
-
-pub trait ClipboardSink {
-    fn publish(
-        &mut self,
-        data: Option<ClipboardRecord>,
-    ) -> impl Future<Output = anyhow::Result<()>>;
-}
+use client_interface::{
+    ClipboardContent, ClipboardRecord, ClipboardSink, ClipboardSource, ImageData,
+};
 
 pub struct Handler {
     pub sender: Sender<ClipboardRecord>,

@@ -1,14 +1,13 @@
 use std::{collections::HashSet, path::PathBuf};
 
+use client_interface::ServerClipboardContent;
 use log::{debug, info, warn};
 use tokio::{
     runtime::{Builder, Handle},
     sync::broadcast::Sender,
 };
 
-use super::{
-    search::Search, ClipboardMessage, QueryParam, QueryResult, ServerClipboardContent, ServerConfig,
-};
+use super::{search::Search, ClipboardMessage, QueryParam, QueryResult, ServerConfig};
 
 pub struct GlobalState {
     sender: Sender<ClipboardMessage>,

@@ -1,62 +1,105 @@
+[workspace]
+members = [
+    "client-interface",
+    "clip-sync-server",
+    "mqtt-client",
+    "websocket-client",
+    "websocket-server",
+]
+
+[workspace.dependencies]
+anyhow = "1"
+log = "0.4"
+env_logger = "0.10"
+clap = { version = "4" }
+clap-verbosity-flag = "2"
+futures = { version = "0.3" }
+tokio = { version = "1" }
+serde = { version = "1" }
+serde_json = "1"
+toml = "0.8"
+platform-dirs = "0.3"
+futures-util = "0.3"
+poem = { version = "2" }
+tantivy = { version = "0.21" }
+tantivy-jieba = "0.10.0"
+chrono = "0.4"
+png = { version = "0.17" }
+reqwest = { version = "0.11" }
+
+rumqttc = { version = "0.23" }
+arboard = { version = "3" }
+clipboard-master = { version = "3" }
+gethostname = { version = "0.4" }
+random-string = { version = "1" }
+tokio-tungstenite = { version = "0.21.0" }
+url = { version = "2" }
+webbrowser = { version = "0.8" }
+tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
+
+client-interface = { path = "client-interface" }
+mqtt-client = { path = "mqtt-client" }
+websocket-client = { path = "websocket-client" }
+websocket-server = { path = "websocket-server" }
+
 [package]
 name = "clip-sync"
 authors = ["Chen Xu <windoze@0d0a.com>"]
-version = "0.5.0"
+version = "0.6.0"
 edition = "2021"
 description = "A clipboard sync tool"
 rust-version = "1.75.0"
 
 [dependencies]
-anyhow = "1"
-log = "0.4"
-env_logger = "0.10"
-clap = { version = "4", features = ["derive"] }
-clap-verbosity-flag = "2"
-futures = { version = "0.3" }
-tokio = { version = "1", features = ["sync", "rt", "rt-multi-thread", "fs"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-toml = "0.8"
-platform-dirs = "0.3"
-futures-util = "0.3"
-poem = { version = "2", features = ["websocket", "rustls", "static-files", "multipart"] }
-tantivy = { version = "0.21" }
-tantivy-jieba = "0.10.0"
-chrono = "0.4"
-png = { version = "0.17" }
-reqwest = { version = "0.11", features = ["json", "multipart"] }
+anyhow = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+clap-verbosity-flag = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "fs", "macros"] }
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
+platform-dirs = { workspace = true }
+futures-util = { workspace = true }
+chrono = { workspace = true }
+arboard = { workspace = true }
+clipboard-master = { workspace = true }
 
-rumqttc = { version = "0.23", optional = true }
-arboard = { version = "3", optional = true }
-clipboard-master = { version = "3", optional = true }
-gethostname = { version = "0.4", optional = true }
-random-string = { version = "1", optional = true }
-tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-webpki-roots"], optional = true }
-url = { version = "2", optional = true }
-webbrowser = { version = "0.8", optional = true }
+url = { workspace = true, optional = true }
+webbrowser = { workspace = true, optional = true }
+
+client-interface = { workspace = true }
+
+mqtt-client = { workspace = true, optional = true }
+websocket-client = { workspace = true, optional = true}
+websocket-server = { workspace = true, optional = true }
 
 [target.'cfg(target_os="linux")'.dependencies]
-tray-item = { git = "https://github.com/windoze/tray-item-rs.git", features = ["ksni"], optional = true }
+tray-item = { workspace = true, features = ["ksni"], optional = true }
 
 [target.'cfg(not(target_os="linux"))'.dependencies]
-tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
+tray-item = { workspace = true, optional = true }
 
 [build-dependencies]
 embed-resource = "2.4"
 
 [features]
 default = [
-    "rumqttc",
-    "arboard",
-    "clipboard-master",
-    "gethostname",
-    "random-string",
-    "tokio-tungstenite",
-    "tray-item",
-    "url",
-    "webbrowser",
+    "tray",
+    "mqtt",
+    "websocket",
+    "server",
 ]
-server-only = []
+
+websocket = ["websocket-client"]
+mqtt = ["mqtt-client"]
+server = ["websocket-server"]
+tray = [
+    "tray-item",
+    "webbrowser",
+    "url",
+]
 
 [target.'cfg(target_env="musl")'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }

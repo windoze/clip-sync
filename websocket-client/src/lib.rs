@@ -11,10 +11,9 @@ use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream,
 };
 
-use crate::{
-    clipboard_handler,
-    server::{ServerClipboardContent, ServerClipboardRecord},
-    ClipboardContent, ClipboardRecord, ClipboardSink, ClipboardSource,
+use client_interface::{
+    ClipSyncClient, ClipboardContent, ClipboardRecord, ClipboardSink, ClipboardSource,
+    ServerClipboardContent, ServerClipboardRecord,
 };
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -25,64 +24,64 @@ pub struct ClientConfig {
     pub client_id: Option<String>,
 }
 
-pub async fn clip_sync_svc(args: ClientConfig) -> anyhow::Result<()> {
-    loop {
-        if let Err(e) = clip_sync_svc_impl(args.clone()).await {
-            log::error!("Error: {}", e);
+pub struct WebsocketClipSyncClient;
+
+impl ClipSyncClient for WebsocketClipSyncClient {
+    type Config = ClientConfig;
+
+    #[allow(refining_impl_trait)]
+    async fn connect(
+        args: Self::Config,
+    ) -> anyhow::Result<(String, WebSocketSource, WebSocketSink)> {
+        let sender_id = args.client_id.unwrap_or(
+            gethostname()
+                .into_string()
+                .unwrap_or(random_string::generate(12, "abcdefghijklmnopqrstuvwxyz")),
+        );
+
+        let server_url = if args.server_url.ends_with('/') {
+            format!("{}api/clip-sync/{}", &args.server_url, &sender_id)
+        } else {
+            format!("{}/api/clip-sync/{}", &args.server_url, &sender_id)
+        };
+
+        let mut url = url::Url::parse(&server_url)?;
+        if url.scheme() == "http" || url.scheme() == "ws" {
+            url.set_scheme("ws").unwrap();
+        } else {
+            url.set_scheme("wss").unwrap();
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        info!("Connecting to {} ...", url);
+
+        let req = Request::builder();
+        let req = if args.secret.is_some() {
+            req.header(
+                "Authorization",
+                format!("Bearer {}", args.secret.clone().unwrap()),
+            )
+        } else {
+            req
+        }
+        .method("GET")
+        .header("Host", url.host_str().unwrap_or_default())
+        .header("Connection", "Upgrade")
+        .header("Upgrade", "websocket")
+        .header("Sec-WebSocket-Version", "13")
+        .header("Sec-WebSocket-Key", generate_key())
+        .uri(url.as_str())
+        .body(())?;
+
+        let (ws_stream, _) = tokio_tungstenite::connect_async(req).await?;
+        info!("Connected to {}", url);
+
+        let (write, read) = ws_stream.split();
+        let write = WebSocketSink::new(write, &sender_id, &args.server_url, args.secret.clone())?;
+        let read = WebSocketSource::new(read, &args.server_url, args.secret.clone())?;
+        Ok((sender_id, read, write))
     }
 }
 
-async fn clip_sync_svc_impl(args: ClientConfig) -> anyhow::Result<()> {
-    let sender_id = args.client_id.unwrap_or(
-        gethostname()
-            .into_string()
-            .unwrap_or(random_string::generate(12, "abcdefghijklmnopqrstuvwxyz")),
-    );
-
-    let server_url = if args.server_url.ends_with('/') {
-        format!("{}api/clip-sync/{}", &args.server_url, &sender_id)
-    } else {
-        format!("{}/api/clip-sync/{}", &args.server_url, &sender_id)
-    };
-
-    let mut url = url::Url::parse(&server_url)?;
-    if url.scheme() == "http" || url.scheme() == "ws" {
-        url.set_scheme("ws").unwrap();
-    } else {
-        url.set_scheme("wss").unwrap();
-    }
-    info!("Connecting to {} ...", url);
-
-    let req = Request::builder();
-    let req = if args.secret.is_some() {
-        req.header(
-            "Authorization",
-            format!("Bearer {}", args.secret.clone().unwrap()),
-        )
-    } else {
-        req
-    }
-    .method("GET")
-    .header("Host", url.host_str().unwrap_or_default())
-    .header("Connection", "Upgrade")
-    .header("Upgrade", "websocket")
-    .header("Sec-WebSocket-Version", "13")
-    .header("Sec-WebSocket-Key", generate_key())
-    .uri(url.as_str())
-    .body(())?;
-
-    let (ws_stream, _) = tokio_tungstenite::connect_async(req).await?;
-    info!("Connected to {}", url);
-
-    let (write, read) = ws_stream.split();
-    let write = WebSocketSink::new(write, &sender_id, &args.server_url, args.secret.clone())?;
-    let read = WebSocketSource::new(read, &args.server_url, args.secret.clone())?;
-    clipboard_handler::start(sender_id, read, write).await
-}
-
-struct WebSocketSource {
+pub struct WebSocketSource {
     source: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
     image_url: String,
     secret: Option<String>,
@@ -121,7 +120,7 @@ impl WebSocketSource {
         Ok(None)
     }
 
-    async fn download_image(&mut self, url: &str) -> anyhow::Result<crate::ImageData> {
+    async fn download_image(&mut self, url: &str) -> anyhow::Result<client_interface::ImageData> {
         debug!("Downloading image from {}", url);
         let url = format!("{}/{}", self.image_url, url);
         let client = reqwest::Client::new();
@@ -136,7 +135,7 @@ impl WebSocketSource {
             return Err(anyhow::anyhow!("Download failed"));
         }
         info!("Image downloaded from {}", url);
-        crate::ImageData::from_png(&res.bytes().await?)
+        client_interface::ImageData::from_png(&res.bytes().await?)
     }
 }
 
@@ -162,7 +161,7 @@ impl ClipboardSource for WebSocketSource {
     }
 }
 
-struct WebSocketSink {
+pub struct WebSocketSink {
     sink: SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, Message>,
     upload_url: String,
     secret: Option<String>,
@@ -202,7 +201,7 @@ impl WebSocketSink {
         Ok(())
     }
 
-    async fn upload_image(&mut self, data: &crate::ImageData) -> anyhow::Result<String> {
+    async fn upload_image(&mut self, data: &client_interface::ImageData) -> anyhow::Result<String> {
         debug!("Uploading image to {}", self.upload_url);
         let client = reqwest::Client::new();
         let part = reqwest::multipart::Part::bytes(data.to_png()?).mime_str("image/png")?;

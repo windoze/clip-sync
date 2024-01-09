@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use chrono::Utc;
+use client_interface::ClipboardMessage;
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use poem::{
@@ -18,7 +19,7 @@ use poem::{
 };
 use tokio::sync::{broadcast::channel, RwLock};
 
-use crate::server::global_state::GlobalState;
+use crate::global_state::GlobalState;
 
 mod auth;
 mod global_state;
@@ -293,7 +294,7 @@ pub async fn server_main(mut args: ServerConfig) -> Result<(), std::io::Error> {
 mod tests {
     #[test]
     fn test_serde() {
-        use super::{ServerClipboardContent, ServerClipboardRecord};
+        use client_interface::{ServerClipboardContent, ServerClipboardRecord};
         let data = ServerClipboardRecord {
             source: "test".to_string(),
             content: ServerClipboardContent::Text("test".to_string()),
