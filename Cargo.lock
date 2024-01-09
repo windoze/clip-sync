@@ -394,6 +394,7 @@ dependencies = [
  "mqtt-client",
  "openssl",
  "platform-dirs",
+ "png",
  "serde",
  "tokio",
  "toml",
