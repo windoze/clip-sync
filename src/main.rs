@@ -1,64 +1,14 @@
 #![windows_subsystem = "windows"]
 
-use clap::Parser;
 use client_interface::ClipSyncClient;
+use clip_sync_config::Args;
 use log::info;
-use platform_dirs::AppDirs;
-use serde::Deserialize;
 
-use std::path::PathBuf;
+pub use client_interface::{ClipboardSink, ClipboardSource};
 
-#[cfg(not(feature = "server-only"))]
 mod clipboard_handler;
 
 pub static APP_ICON: &[u8] = include_bytes!("../icons/app-icon.png");
-
-#[cfg(not(feature = "server-only"))]
-pub use client_interface::{ClipboardSink, ClipboardSource};
-
-#[derive(Debug, Clone, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-struct Args {
-    pub roles: Vec<String>,
-    #[cfg(feature = "server")]
-    #[serde(default)]
-    pub server: websocket_server::ServerConfig,
-    #[cfg(feature = "mqtt")]
-    #[serde(default)]
-    pub mqtt_client: mqtt_client::MqttClientConfig,
-    #[cfg(feature = "websocket")]
-    #[serde(default)]
-    pub websocket_client: websocket_client::ClientConfig,
-}
-
-impl Args {
-    #[cfg(all(feature = "tray", feature = "websocket"))]
-    pub fn get_server_url(&self) -> Option<String> {
-        if self.roles.contains(&"websocket-client".to_string()) {
-            if let Ok(mut url) = url::Url::parse(&self.websocket_client.server_url) {
-                let scheme = if url.scheme() == "wss" {
-                    "https"
-                } else if url.scheme() == "ws" {
-                    "http"
-                } else {
-                    return None;
-                };
-                url.set_scheme(scheme).unwrap();
-                url.set_path("");
-                Some(url.to_string())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
-    }
-}
-
-fn get_config_file() -> PathBuf {
-    let app_dirs = AppDirs::new(Some(env!("CARGO_PKG_NAME")), false).unwrap();
-    app_dirs.config_dir.join("config.toml")
-}
 
 async fn svc_main(args: Args) -> anyhow::Result<()> {
     let mut tasks: Vec<tokio::task::JoinHandle<anyhow::Result<()>>> = vec![];
@@ -190,31 +140,12 @@ mod tray {
 }
 
 fn main() -> anyhow::Result<()> {
-    #[derive(Debug, Clone, Parser)]
-    struct Config {
-        #[arg(long = "config")]
-        config_path: Option<std::path::PathBuf>,
-        #[cfg(not(feature = "server-only"))]
-        #[arg(long, default_value = "false")]
-        no_tray: bool,
-        #[command(flatten)]
-        verbose: clap_verbosity_flag::Verbosity,
-    }
-
-    let cli = Config::parse();
-    env_logger::Builder::new()
-        .filter_level(cli.verbose.log_level_filter())
-        .filter_module("tantivy", log::LevelFilter::Warn) // Tantivy is too talky at the INFO level
-        .init();
-    info!("Starting");
-    let config_path = cli.config_path.unwrap_or(get_config_file());
-    let config = std::fs::read_to_string(&config_path)
-        .unwrap_or_else(|_| panic!("Failed to read config at '{:?}'", config_path));
-    let args = toml::from_str::<Args>(&config)?;
+    let args = clip_sync_config::parse()?;
 
     #[cfg(all(feature = "tray", feature = "websocket"))]
     let server_url = args.get_server_url();
 
+    #[allow(unused_variables)]
     let join_handler = std::thread::spawn(move || {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
@@ -227,15 +158,12 @@ fn main() -> anyhow::Result<()> {
 
     #[cfg(feature = "tray")]
     {
-        if cli.no_tray {
-            join_handler.join().unwrap();
-        } else {
-            tray::run_tray(
-                #[cfg(feature = "websocket")]
-                server_url,
-            )?;
-        }
+        tray::run_tray(
+            #[cfg(feature = "websocket")]
+            server_url,
+        )?;
     }
+
     #[cfg(not(feature = "tray"))]
     {
         join_handler.join().unwrap();

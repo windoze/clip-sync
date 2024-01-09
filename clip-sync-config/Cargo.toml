@@ -1,0 +1,27 @@
+[package]
+name = "clip-sync-config"
+version = "0.6.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+log = { workspace = true }
+env_logger = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+clap-verbosity-flag = { workspace = true }
+platform-dirs = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+toml = { workspace = true }
+url = { workspace = true, optional = true }
+
+mqtt-client = { workspace = true, optional = true }
+websocket-client = { workspace = true, optional = true}
+websocket-server = { workspace = true, optional = true }
+
+[features]
+websocket = ["websocket-client"]
+mqtt = ["mqtt-client"]
+server = ["websocket-server"]
+tray = ["url"]

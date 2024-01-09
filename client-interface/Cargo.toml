@@ -14,6 +14,7 @@ gethostname = { workspace = true }
 chrono = { workspace = true, optional = true}
 
 [features]
+default = ["websocket"]
 websocket = [
     "chrono"
 ]

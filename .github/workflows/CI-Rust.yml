@@ -32,13 +32,20 @@ jobs:
           rustup target add aarch64-apple-darwin
           cargo build --verbose --release --target aarch64-apple-darwin
           cargo build --verbose --release
-          lipo -create -output clip-sync target/release/clip-sync target/aarch64-apple-darwin/release/clip-sync
-
+          lipo -create -output target/clip-sync target/release/clip-sync target/aarch64-apple-darwin/release/clip-sync
+          cargo build --verbose --release --target aarch64-apple-darwin --package clip-sync-cli
+          cargo build --verbose --release --package clip-sync-cli
+          lipo -create -output target/clip-sync-cli target/release/clip-sync-cli target/aarch64-apple-darwin/release/clip-sync-cli
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
           name: clip-sync-universal-apple-darwin
-          path: clip-sync
+          path: target/clip-sync
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-cli-universal-apple-darwin
+          path: target/clip-sync-cli
 
   check_n_build_w:
     name: Check and Build on Windows
@@ -54,11 +61,17 @@ jobs:
           cargo test
           cargo clippy -- -D warnings
           cargo build --verbose --release
+          cargo build --verbose --release --package clip-sync-cli
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
           name: clip-sync-x86_64-windows-msvc
           path: target/release/clip-sync.exe
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-cli-x86_64-windows-msvc
+          path: target/release/clip-sync-cli.exe
 
   check_n_build_l:
     name: Check and Build on Linux
@@ -77,7 +90,8 @@ jobs:
           cargo clippy -- -D warnings
           cargo test
           cargo build --verbose --release --target x86_64-unknown-linux-musl --package clip-sync-server
-          cargo build --verbose --release --package clip-sync
+          cargo build --verbose --release
+          cargo build --verbose --release --package clip-sync-cli
       - uses: actions/upload-artifact@v3
         with:
           retention-days: 14
@@ -88,6 +102,12 @@ jobs:
           retention-days: 14
           name: clip-sync-x86_64-linux-gnu
           path: target/release/clip-sync
+      - uses: actions/upload-artifact@v3
+        with:
+          retention-days: 14
+          name: clip-sync-cli-x86_64-linux-gnu
+          path: target/release/clip-sync-cli
+
 
   check_n_build_ui:
     name: Check and Build UI
