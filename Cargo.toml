@@ -50,7 +50,7 @@ websocket-server = { path = "websocket-server" }
 [package]
 name = "clip-sync"
 authors = ["Chen Xu <windoze@0d0a.com>"]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 description = "A clipboard sync tool"
 rust-version = "1.75.0"
