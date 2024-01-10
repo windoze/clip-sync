@@ -229,23 +229,29 @@ impl WebSocketSink {
 impl ClipboardSink for WebSocketSink {
     async fn publish(&mut self, data: Option<ClipboardRecord>) -> anyhow::Result<()> {
         let raw_string = match data {
-            Some(data) => match data.content {
-                ClipboardContent::Text(text) => {
-                    let data = ServerClipboardRecord {
-                        source: data.source,
-                        content: ServerClipboardContent::Text(text),
-                    };
-                    Some(serde_json::to_string(&data)?)
+            Some(data) => {
+                match data.content {
+                    ClipboardContent::Text(text) => {
+                        let data = ServerClipboardRecord {
+                            id: None,
+                            source: data.source,
+                            content: ServerClipboardContent::Text(text),
+                        };
+                        Some(serde_json::to_string(&data)?)
+                    }
+                    ClipboardContent::Image(img) => {
+                        // Convert data to ServerClipboardData
+                        let data = ServerClipboardRecord {
+                            id: None,
+                            source: data.source,
+                            content: ServerClipboardContent::ImageUrl(
+                                self.upload_image(&img).await?,
+                            ),
+                        };
+                        Some(serde_json::to_string(&data)?)
+                    }
                 }
-                ClipboardContent::Image(img) => {
-                    // Convert data to ServerClipboardData
-                    let data = ServerClipboardRecord {
-                        source: data.source,
-                        content: ServerClipboardContent::ImageUrl(self.upload_image(&img).await?),
-                    };
-                    Some(serde_json::to_string(&data)?)
-                }
-            },
+            }
             None => None,
         };
         self.publish_raw_string(raw_string).await?;

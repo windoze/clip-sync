@@ -24,9 +24,9 @@ impl Args {
     pub fn get_server_url(&self) -> Option<String> {
         if self.roles.contains(&"websocket-client".to_string()) {
             if let Ok(mut url) = url::Url::parse(&self.websocket_client.server_url) {
-                let scheme = if url.scheme() == "wss" {
+                let scheme = if (url.scheme() == "wss") || url.scheme() == "https" {
                     "https"
-                } else if url.scheme() == "ws" {
+                } else if (url.scheme() == "ws") || url.scheme() == "http" {
                     "http"
                 } else {
                     return None;
