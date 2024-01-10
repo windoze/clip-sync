@@ -79,11 +79,11 @@ impl GlobalState {
 
     pub async fn add_entry(&self, mut msg: ClipboardMessage, store: bool) -> anyhow::Result<()> {
         debug!("Publishing message: {:?}", msg);
-        self.sender.send(msg.clone())?;
         if self.validate_message_content(&msg).await.is_err() {
             warn!("Ignored invalid clipboard entry.");
             return Ok(());
         }
+        self.sender.send(msg.clone())?;
         match &msg.entry.content {
             ServerClipboardContent::ImageUrl(url) => {
                 let digest = self.image_digest(url).await?;
