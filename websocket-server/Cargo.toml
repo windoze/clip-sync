@@ -16,5 +16,8 @@ poem = { workspace = true, features = ["websocket", "rustls", "static-files", "m
 tantivy = { workspace = true }
 chrono = { workspace = true }
 futures-util = { workspace = true }
+moka = { workspace = true }
+sha2 = { workspace = true }
+hex = { workspace = true }
 
 client-interface = { workspace = true, features = ["websocket"] }

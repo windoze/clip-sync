@@ -7,7 +7,7 @@ use tantivy::{
     directory::MmapDirectory,
     doc,
     merge_policy::LogMergePolicy,
-    query::{AllQuery, BooleanQuery, Query, QueryParser, RangeQuery, TermSetQuery},
+    query::{AllQuery, BooleanQuery, Query, QueryParser, RangeQuery, TermQuery, TermSetQuery},
     query_grammar::Occur,
     schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, STORED},
     tokenizer::{LowerCaser, NgramTokenizer, TextAnalyzer},
@@ -22,8 +22,10 @@ const TOKENIZER_NAME: &str = "ngram_m_n";
 pub struct Search {
     index: Index,
     reader: IndexReader,
+    id: Field,
     source: Field,
     content: Field,
+    url: Field,
     timestamp: Field,
     query_parser: QueryParser,
 }
@@ -50,8 +52,10 @@ impl Search {
                     .set_index_option(IndexRecordOption::WithFreqsAndPositions),
             )
             .set_stored();
-        let source = schema_builder.add_text_field("source", token_options);
+        let id = schema_builder.add_text_field("id", token_options.clone());
+        let source = schema_builder.add_text_field("source", token_options.clone());
         let content = schema_builder.add_text_field("content", text_options);
+        let url = schema_builder.add_text_field("url", token_options);
         let timestamp = schema_builder.add_i64_field("timestamp", FAST | STORED);
         let schema = schema_builder.build();
         let index = match index_path {
@@ -62,7 +66,6 @@ impl Search {
             None => Index::create_in_ram(schema.clone()),
         };
         index.tokenizers().register(TOKENIZER_NAME, tokenizer);
-        // .register("jieba", tantivy_jieba::JiebaTokenizer {});
         let reader = index
             .reader_builder()
             .reload_policy(ReloadPolicy::OnCommit)
@@ -74,28 +77,114 @@ impl Search {
         Self {
             index,
             reader,
+            id,
             source,
             content,
+            url,
             timestamp,
             query_parser,
         }
     }
 
+    pub fn get_entry_by_id(&self, id: &str) -> anyhow::Result<Option<ClipboardMessage>> {
+        let q = TermQuery::new(Term::from_field_text(self.id, id), IndexRecordOption::Basic);
+        let collector = TopDocs::with_limit(1);
+        let searcher = self.reader.searcher();
+        let result: Vec<(f64, DocAddress)> = searcher
+            .search(&q, &collector)?
+            .into_iter()
+            .map(|(ts, d)| (ts as f64, d))
+            .collect();
+        if result.is_empty() {
+            return Ok(None);
+        }
+        let (_, doc_address) = result[0];
+        let doc = searcher.doc(doc_address)?;
+        let data = doc
+            .get_first(self.content)
+            .and_then(|v| v.as_text())
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let id = doc
+            .get_first(self.id)
+            .and_then(|v| v.as_text())
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let source = doc
+            .get_first(self.source)
+            .and_then(|v| v.as_text())
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let url = doc
+            .get_first(self.url)
+            .and_then(|v| v.as_text())
+            .map(|v| v.to_string())
+            .unwrap_or_default();
+        let timestamp = doc
+            .get_first(self.timestamp)
+            .and_then(|v| v.as_i64())
+            .unwrap_or_default();
+        if url.is_empty() {
+            Ok(Some(ClipboardMessage {
+                entry: ServerClipboardRecord {
+                    id: Some(id),
+                    source: source.to_string(),
+                    content: ServerClipboardContent::Text(data.to_string()),
+                },
+                timestamp,
+            }))
+        } else {
+            Ok(Some(ClipboardMessage {
+                entry: ServerClipboardRecord {
+                    id: Some(id),
+                    source: source.to_string(),
+                    content: ServerClipboardContent::ImageUrl(url.to_string()),
+                },
+                timestamp,
+            }))
+        }
+    }
+
     pub fn add_entry(&self, entry: &ClipboardMessage) -> anyhow::Result<()> {
         debug!("Adding entry: from {}", entry.entry.source);
-        if let ServerClipboardContent::Text(text) = &entry.entry.content {
-            let mut index_writer = self.index.writer(50_000_000)?;
-            index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
-            index_writer.add_document(doc!(
-                self.source => entry.entry.source.clone(),
-                self.content => text.clone(),
-                self.timestamp => entry.timestamp
-            ))?;
-            index_writer.commit()?;
-        } else {
-            // TODO: Save image to somewhere
-            debug!("Not text, skipping");
+        assert!(entry.entry.id.is_some());
+        let id = entry.entry.id.as_ref().unwrap().clone();
+        let q = TermQuery::new(
+            Term::from_field_text(self.id, &id),
+            IndexRecordOption::Basic,
+        );
+        let collector = TopDocs::with_limit(1);
+        let searcher = self.reader.searcher();
+        let result: Vec<(f64, DocAddress)> = searcher
+            .search(&q, &collector)?
+            .into_iter()
+            .map(|(ts, d)| (ts as f64, d))
+            .collect();
+        if !result.is_empty() {
+            debug!("Entry already exists, skipping");
+            return Ok(());
         }
+        let mut index_writer = self.index.writer(50_000_000)?;
+        index_writer.set_merge_policy(Box::<LogMergePolicy>::default());
+        index_writer.add_document(match &entry.entry.content {
+            ServerClipboardContent::Text(text) => {
+                doc!(
+                    self.id => id,
+                    self.source => entry.entry.source.clone(),
+                    self.content => text.clone(),
+                    self.timestamp => entry.timestamp
+                )
+            }
+            ServerClipboardContent::ImageUrl(url) => {
+                doc!(
+                    self.id => id,
+                    self.source => entry.entry.source.clone(),
+                    self.url => url.clone(),
+                    self.timestamp => entry.timestamp
+                )
+            }
+        })?;
+        index_writer.commit()?;
         Ok(())
     }
 
@@ -211,8 +300,18 @@ impl Search {
                         .and_then(|v| v.as_text())
                         .map(|v| v.to_string())
                         .unwrap_or_default();
+                    let id = d
+                        .get_first(self.id)
+                        .and_then(|v| v.as_text())
+                        .map(|v| v.to_string())
+                        .unwrap_or_default();
                     let source = d
                         .get_first(self.source)
+                        .and_then(|v| v.as_text())
+                        .map(|v| v.to_string())
+                        .unwrap_or_default();
+                    let url = d
+                        .get_first(self.url)
                         .and_then(|v| v.as_text())
                         .map(|v| v.to_string())
                         .unwrap_or_default();
@@ -220,12 +319,24 @@ impl Search {
                         .get_first(self.timestamp)
                         .and_then(|v| v.as_i64())
                         .unwrap_or_default();
-                    ClipboardMessage {
-                        entry: ServerClipboardRecord {
-                            source: source.to_string(),
-                            content: ServerClipboardContent::Text(data.to_string()),
-                        },
-                        timestamp,
+                    if url.is_empty() {
+                        ClipboardMessage {
+                            entry: ServerClipboardRecord {
+                                id: Some(id),
+                                source: source.to_string(),
+                                content: ServerClipboardContent::Text(data.to_string()),
+                            },
+                            timestamp,
+                        }
+                    } else {
+                        ClipboardMessage {
+                            entry: ServerClipboardRecord {
+                                id: Some(id),
+                                source: source.to_string(),
+                                content: ServerClipboardContent::ImageUrl(url.to_string()),
+                            },
+                            timestamp,
+                        }
                     }
                 })
             })

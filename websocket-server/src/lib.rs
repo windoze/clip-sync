@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use chrono::Utc;
-use client_interface::ClipboardMessage;
+use client_interface::{ClipboardMessage, ServerClipboardContent};
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use poem::{
@@ -17,6 +17,7 @@ use poem::{
     },
     EndpointExt, IntoResponse, Request, Route, Server,
 };
+use sha2::Digest;
 use tokio::sync::{broadcast::channel, RwLock};
 
 use crate::global_state::GlobalState;
@@ -181,7 +182,7 @@ async fn upload_image(
             }
             break;
         }
-        let filename = format!("{}-{}.png", timestamp, suffix);
+        let filename: String = format!("{}-{}.png", timestamp, suffix);
         let filepath: PathBuf = dir.join(&filename);
         let part_name = field.name().map(ToString::to_string);
         let file_name = field.file_name().map(ToString::to_string);
@@ -193,6 +194,16 @@ async fn upload_image(
                 bytes.len(),
                 filepath,
             );
+            let mut hasher = <sha2::Sha512 as Digest>::new();
+            hasher.update(&bytes);
+            let digest = hex::encode(Into::<[u8; 64]>::into(hasher.finalize()));
+            let existing_entry = data.0.read().await.get_entry_by_id(&digest).await.unwrap();
+            if let Some(existing_entry) = existing_entry {
+                if let ServerClipboardContent::ImageUrl(url) = &existing_entry.entry.content {
+                    debug!("Image already exists: {:?}", existing_entry);
+                    return Ok(url.clone());
+                }
+            }
             tokio::fs::write(&filepath, bytes).await.map_err(|e| {
                 warn!("Failed to write file: {}", e);
                 poem::Error::from_status(StatusCode::INTERNAL_SERVER_ERROR)
@@ -296,6 +307,7 @@ mod tests {
     fn test_serde() {
         use client_interface::{ServerClipboardContent, ServerClipboardRecord};
         let data = ServerClipboardRecord {
+            id: None,
             source: "test".to_string(),
             content: ServerClipboardContent::Text("test".to_string()),
         };
