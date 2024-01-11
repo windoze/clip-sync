@@ -21,7 +21,6 @@ websocket-client = { workspace = true, optional = true}
 websocket-server = { workspace = true, optional = true }
 
 [features]
-websocket = ["websocket-client"]
+websocket = ["websocket-client", "url"]
 mqtt = ["mqtt-client"]
 server = ["websocket-server"]
-tray = ["url"]

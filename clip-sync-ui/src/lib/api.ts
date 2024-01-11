@@ -76,6 +76,7 @@ export async function getImageCollection(name: string): Promise<string[]> {
 }
 
 export class WebSocketComponent {
+    private url: string = "";
     private socket: WebSocket | undefined;
     private listeners: ((data: any) => void)[] = [];
 
@@ -83,18 +84,9 @@ export class WebSocketComponent {
         let url = new URL(`${getApiRoot()}clip-sync/$utilities`);
         url.protocol = url.protocol.replace("https", "wss");
         url.protocol = url.protocol.replace("http", "ws");
+        this.url = url.toString();
 
-        this.socket = new WebSocket(url.toString());
-        console.log(`WebSocket to ${url.toString()} created`);
-        this.socket.addEventListener("message", (event) => {
-            let msg = JSON.parse(event.data + "");
-            if (msg.source.startsWith('$')) {
-                return;
-            }
-            this.listeners.forEach((listener) => {
-                listener(msg);
-            });
-        });
+        this.connect();
     }
 
     public addListener(listener: (data: any) => void) {
@@ -109,6 +101,30 @@ export class WebSocketComponent {
         if (this.socket) {
             this.socket.send(data);
         }
+    }
+
+    private connect() {
+        this.socket = new WebSocket(this.url);
+        this.socket.onerror = () => {
+            console.log("WebSocket error, closing...");
+            this.socket?.close();
+        }
+        this.socket.onclose = () => {
+            console.log("WebSocket closed, retrying in 1 second...");
+            setTimeout(() => {
+                this.connect();
+            }, 1000);
+        }
+        console.log(`WebSocket to ${this.url} created`);
+        this.socket.addEventListener("message", (event) => {
+            let msg = JSON.parse(event.data + "");
+            if (msg.source.startsWith('$')) {
+                return;
+            }
+            this.listeners.forEach((listener) => {
+                listener(msg);
+            });
+        });
     }
 }
 

@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use chrono::Utc;
-use client_interface::{ClipboardMessage, ServerClipboardContent};
+use client_interface::{ClipboardMessage, Params, ServerClipboardContent};
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use poem::{

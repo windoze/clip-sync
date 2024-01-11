@@ -138,7 +138,11 @@ impl GlobalState {
                     anyhow::bail!("Empty clipboard entry, ignored.");
                 }
 
-                // TODO: Test if the image exists.
+                let digest = self.image_digest(s).await?;
+                if digest.is_empty() {
+                    anyhow::bail!("Image not found.");
+                }
+                self.cache.insert(s.to_string(), digest.to_owned()).await;
             }
         }
         Ok(())
