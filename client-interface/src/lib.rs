@@ -101,6 +101,47 @@ pub trait ClipSyncClient {
 mod ws {
     use serde::{Deserialize, Serialize};
 
+    #[derive(Debug, Clone, Deserialize)]
+    pub struct Params {
+        #[serde(default)]
+        pub q: Option<String>,
+        #[serde(default)]
+        pub from: Option<String>,
+        #[serde(default)]
+        pub begin: Option<i64>,
+        #[serde(default)]
+        pub end: Option<i64>,
+        #[serde(default)]
+        pub size: Option<usize>,
+        #[serde(default)]
+        pub skip: Option<usize>,
+    }
+
+    impl Params {
+        pub fn to_query(&self) -> Vec<(&'static str, String)> {
+            let mut query = vec![];
+            if let Some(q) = &self.q {
+                query.push(("q", q.to_string()));
+            }
+            if let Some(from) = &self.from {
+                query.push(("from", from.to_string()));
+            }
+            if let Some(begin) = &self.begin {
+                query.push(("begin", begin.to_string()));
+            }
+            if let Some(end) = &self.end {
+                query.push(("end", end.to_string()));
+            }
+            if let Some(size) = &self.size {
+                query.push(("size", size.to_string()));
+            }
+            if let Some(skip) = &self.skip {
+                query.push(("skip", skip.to_string()));
+            }
+            query
+        }
+    }
+
     fn default_timestamp() -> i64 {
         chrono::Utc::now().timestamp()
     }

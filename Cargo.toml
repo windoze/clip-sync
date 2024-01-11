@@ -100,8 +100,6 @@ server = ["websocket-server", "clip-sync-config/server"]
 tray = [
     "tray-item",
     "webbrowser",
-    "url",
-    "clip-sync-config/tray",
 ]
 
 [target.'cfg(target_env="musl")'.dependencies]

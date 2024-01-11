@@ -1,7 +1,7 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use chrono::{DateTime, TimeZone, Utc};
-use client_interface::ClipboardMessage;
+use client_interface::{ClipboardMessage, Params};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -16,24 +16,6 @@ pub struct ServerConfig {
     pub web_root: Option<PathBuf>,
     pub index_path: Option<PathBuf>,
     pub image_path: Option<PathBuf>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct Params {
-    #[serde(default)]
-    pub q: Option<String>,
-    #[serde(default)]
-    pub from: Option<String>,
-    #[serde(default)]
-    pub begin: Option<i64>,
-    #[serde(default)]
-    pub end: Option<i64>,
-    #[serde(default)]
-    pub size: Option<usize>,
-    #[serde(default)]
-    pub skip: Option<usize>,
-    #[serde(default)]
-    pub sort: Option<String>,
 }
 
 pub struct QueryParam {

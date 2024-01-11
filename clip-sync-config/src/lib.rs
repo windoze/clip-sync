@@ -20,7 +20,7 @@ pub struct Args {
 }
 
 impl Args {
-    #[cfg(all(feature = "tray", feature = "websocket"))]
+    #[cfg(feature = "websocket")]
     pub fn get_server_url(&self) -> Option<String> {
         if self.roles.contains(&"websocket-client".to_string()) {
             if let Ok(mut url) = url::Url::parse(&self.websocket_client.server_url) {
@@ -42,7 +42,7 @@ impl Args {
         }
     }
 
-    #[cfg(not(all(feature = "tray", feature = "websocket")))]
+    #[cfg(not(feature = "websocket"))]
     #[allow(dead_code, unused_variables)]
     pub fn get_server_url(&self) -> Option<String> {
         None
