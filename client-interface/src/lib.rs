@@ -115,6 +115,8 @@ mod ws {
         pub size: Option<usize>,
         #[serde(default)]
         pub skip: Option<usize>,
+        #[serde(default)]
+        pub sort: Option<String>,
     }
 
     impl Params {
@@ -137,6 +139,9 @@ mod ws {
             }
             if let Some(skip) = &self.skip {
                 query.push(("skip", skip.to_string()));
+            }
+            if let Some(sort) = &self.skip {
+                query.push(("sort", sort.to_string()));
             }
             query
         }

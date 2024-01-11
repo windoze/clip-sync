@@ -212,6 +212,7 @@ async fn main() -> anyhow::Result<()> {
                     end: None,
                     size: limit,
                     skip,
+                    sort: None,
                 }
                 .to_query();
                 #[allow(unused)]
