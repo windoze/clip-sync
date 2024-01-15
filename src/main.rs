@@ -151,9 +151,21 @@ fn main() -> anyhow::Result<()> {
             .enable_all()
             .build()
             .expect("Failed to create runtime");
-        runtime
-            .block_on(svc_main(args))
-            .expect("Failed to run service");
+        runtime.block_on(async {
+            loop {
+                let args_clone = args.clone();
+                match svc_main(args_clone).await {
+                    Ok(_) => {
+                        info!("Service exited normally");
+                        break;
+                    }
+                    Err(e) => {
+                        log::error!("Service exited with error: {}", e);
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                    }
+                }
+            }
+        })
     });
 
     #[cfg(feature = "tray")]
