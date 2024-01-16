@@ -451,7 +451,6 @@ dependencies = [
  "futures-util",
  "log",
  "mqtt-client",
- "openssl",
  "png",
  "tokio",
  "toml",

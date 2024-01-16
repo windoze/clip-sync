@@ -1,7 +1,10 @@
 [package]
 name = "clip-sync-cli"
-version = "0.7.0"
-edition = "2021"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Clip-Sync command line interface"
 
 [dependencies]
 anyhow = { workspace = true }
