@@ -41,6 +41,12 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
+      - name: Build UI dist
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+      - run: cd clip-sync-ui && npm install && npm run build
+
       - name: Install Linux Dep
         shell: bash
         run: |
@@ -66,14 +72,20 @@ jobs:
         shell: bash
         run: |
           # Replace with the name of your binary
-          binary_name="clip-sync"
+          package_name="clip-sync"
 
-          dirname="$binary_name-${{ env.VERSION }}-${{ matrix.target }}"
+          dirname="$package_name-${{ env.VERSION }}-${{ matrix.target }}"
           mkdir "$dirname"
           if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            mv "target/${{ matrix.target }}/release/$binary_name.exe" "$dirname"
+            mv "target/${{ matrix.target }}/release/clip-sync.exe" "$dirname"
+            mv "target/${{ matrix.target }}/release/clip-sync-cli.exe" "$dirname"
+            mv "target/${{ matrix.target }}/release/clip-sync-server.exe" "$dirname"
+            cp -r clip-sync-ui/dist "$dirname"
           else
-            mv "target/${{ matrix.target }}/release/$binary_name" "$dirname"
+            mv "target/${{ matrix.target }}/release/clip-sync" "$dirname"
+            mv "target/${{ matrix.target }}/release/clip-sync-cli" "$dirname"
+            mv "target/${{ matrix.target }}/release/clip-sync-server" "$dirname"
+            cp -r clip-sync-ui/dist "$dirname"
           fi
 
           if [ "${{ matrix.os }}" = "windows-latest" ]; then

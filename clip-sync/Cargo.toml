@@ -1,0 +1,54 @@
+[package]
+name = "clip-sync"
+authors.workspace = true
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+log = { workspace = true }
+futures = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "fs", "macros"] }
+toml = { workspace = true }
+futures-util = { workspace = true }
+chrono = { workspace = true }
+arboard = { workspace = true }
+clipboard-master = { workspace = true }
+
+url = { workspace = true, optional = true }
+webbrowser = { workspace = true, optional = true }
+
+clip-sync-config = { workspace = true }
+client-interface = { workspace = true }
+
+mqtt-client = { workspace = true, optional = true }
+websocket-client = { workspace = true, optional = true}
+websocket-server = { workspace = true, optional = true }
+
+[target.'cfg(target_os="linux")'.dependencies]
+tray-item = { workspace = true, features = ["ksni"], optional = true }
+png = { workspace = true }
+
+[target.'cfg(not(target_os="linux"))'.dependencies]
+tray-item = { workspace = true, optional = true }
+
+[build-dependencies]
+embed-resource = "2.4"
+
+[features]
+default = [
+    "tray",
+    "mqtt",
+    "websocket",
+    "server",
+]
+
+websocket = ["websocket-client", "clip-sync-config/websocket"]
+mqtt = ["mqtt-client", "clip-sync-config/mqtt"]
+server = ["websocket-server", "clip-sync-config/server"]
+tray = [
+    "tray-item",
+    "webbrowser",
+]

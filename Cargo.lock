@@ -438,7 +438,7 @@ dependencies = [
 
 [[package]]
 name = "clip-sync"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "arboard",
@@ -451,7 +451,6 @@ dependencies = [
  "futures-util",
  "log",
  "mqtt-client",
- "openssl",
  "png",
  "tokio",
  "toml",
@@ -464,7 +463,7 @@ dependencies = [
 
 [[package]]
 name = "clip-sync-cli"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -492,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "clip-sync-config"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "clap 4.4.12",
@@ -510,7 +509,7 @@ dependencies = [
 
 [[package]]
 name = "clip-sync-server"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "clap 4.4.12",
@@ -1848,7 +1847,7 @@ dependencies = [
 
 [[package]]
 name = "mqtt-client"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "bincode",
@@ -3760,7 +3759,7 @@ dependencies = [
 
 [[package]]
 name = "websocket-client"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "clap 4.4.12",
@@ -3780,7 +3779,7 @@ dependencies = [
 
 [[package]]
 name = "websocket-server"
-version = "0.7.0"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "chrono",

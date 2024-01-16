@@ -1,12 +1,22 @@
 [workspace]
+resolver = "2"
 members = [
     "client-interface",
-    "clip-sync-cli", "clip-sync-config",
+    "clip-sync",
+    "clip-sync-cli",
+    "clip-sync-config",
     "clip-sync-server",
     "mqtt-client",
     "websocket-client",
     "websocket-server",
 ]
+
+[workspace.package]
+authors = ["Chen Xu <windoze@0d0a.com>"]
+version = "0.8.0"
+edition = "2021"
+description = "A clipboard sync tool"
+rust-version = "1.75.0"
 
 [workspace.dependencies]
 anyhow = "1"
@@ -46,61 +56,3 @@ client-interface = { path = "client-interface" }
 mqtt-client = { path = "mqtt-client" }
 websocket-client = { path = "websocket-client" }
 websocket-server = { path = "websocket-server" }
-
-[package]
-name = "clip-sync"
-authors = ["Chen Xu <windoze@0d0a.com>"]
-version = "0.7.0"
-edition = "2021"
-description = "A clipboard sync tool"
-rust-version = "1.75.0"
-
-[dependencies]
-anyhow = { workspace = true }
-log = { workspace = true }
-futures = { workspace = true }
-tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "fs", "macros"] }
-toml = { workspace = true }
-futures-util = { workspace = true }
-chrono = { workspace = true }
-arboard = { workspace = true }
-clipboard-master = { workspace = true }
-
-url = { workspace = true, optional = true }
-webbrowser = { workspace = true, optional = true }
-
-clip-sync-config = { workspace = true }
-client-interface = { workspace = true }
-
-mqtt-client = { workspace = true, optional = true }
-websocket-client = { workspace = true, optional = true}
-websocket-server = { workspace = true, optional = true }
-
-[target.'cfg(target_os="linux")'.dependencies]
-tray-item = { workspace = true, features = ["ksni"], optional = true }
-png = { workspace = true }
-
-[target.'cfg(not(target_os="linux"))'.dependencies]
-tray-item = { workspace = true, optional = true }
-
-[build-dependencies]
-embed-resource = "2.4"
-
-[features]
-default = [
-    "tray",
-    "mqtt",
-    "websocket",
-    "server",
-]
-
-websocket = ["websocket-client", "clip-sync-config/websocket"]
-mqtt = ["mqtt-client", "clip-sync-config/mqtt"]
-server = ["websocket-server", "clip-sync-config/server"]
-tray = [
-    "tray-item",
-    "webbrowser",
-]
-
-[target.'cfg(target_env="musl")'.dependencies]
-openssl = { version = "0.10", features = ["vendored"] }

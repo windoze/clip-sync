@@ -8,7 +8,7 @@ pub use client_interface::{ClipboardSink, ClipboardSource};
 
 mod clipboard_handler;
 
-pub static APP_ICON: &[u8] = include_bytes!("../icons/app-icon.png");
+pub static APP_ICON: &[u8] = include_bytes!("../../icons/app-icon.png");
 
 async fn svc_main(args: Args) -> anyhow::Result<()> {
     let mut tasks: Vec<tokio::task::JoinHandle<anyhow::Result<()>>> = vec![];
