@@ -21,7 +21,7 @@ rust-version = "1.75.0"
 [workspace.dependencies]
 anyhow = "1"
 log = "0.4"
-env_logger = "0.10"
+env_logger = "0.11"
 clap = { version = "4" }
 clap-verbosity-flag = "2"
 futures = { version = "0.3" }
@@ -32,15 +32,15 @@ bincode = "1"
 toml = "0.8"
 platform-dirs = "0.3"
 futures-util = "0.3"
-poem = { version = "2" }
+poem = { version = "3" }
 tantivy = { version = "0.21" }
 chrono = "0.4"
 png = { version = "0.17" }
 sha2 = { version = "0.10" }
 hex = { version = "0.4" }
 moka = { version = "0.12", features = ["future"] }
-reqwest = { version = "0.11" }
-rumqttc = { version = "0.23" }
+reqwest = { version = "0.12" }
+rumqttc = { version = "0.24" }
 arboard = { version = "3" }
 clipboard-master = { version = "3" }
 gethostname = { version = "0.4" }
@@ -48,7 +48,7 @@ random-string = { version = "1" }
 tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-native-roots"] }
 url = { version = "2" }
 webbrowser = { version = "0.8" }
-image = { version = "0.24" }
+image = { version = "0.25" }
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
 
 clip-sync-config = { path = "clip-sync-config" }
