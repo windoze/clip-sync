@@ -9,9 +9,11 @@ use tantivy::{
     merge_policy::LogMergePolicy,
     query::{AllQuery, BooleanQuery, Query, QueryParser, RangeQuery, TermQuery, TermSetQuery},
     query_grammar::Occur,
-    schema::{Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, STORED},
+    schema::{
+        Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, Value, FAST, STORED,
+    },
     tokenizer::{LowerCaser, NgramTokenizer, TextAnalyzer},
-    DocAddress, Index, IndexReader, Order, ReloadPolicy, Term,
+    DocAddress, Index, IndexReader, Order, ReloadPolicy, TantivyDocument, Term,
 };
 
 use super::{ClipboardMessage, QueryParam, QueryResult};
@@ -68,7 +70,7 @@ impl Search {
         index.tokenizers().register(TOKENIZER_NAME, tokenizer);
         let reader = index
             .reader_builder()
-            .reload_policy(ReloadPolicy::OnCommit)
+            .reload_policy(ReloadPolicy::OnCommitWithDelay)
             .try_into()
             .unwrap();
         let mut query_parser = QueryParser::for_index(&index, vec![content]);
@@ -99,25 +101,25 @@ impl Search {
             return Ok(None);
         }
         let (_, doc_address) = result[0];
-        let doc = searcher.doc(doc_address)?;
+        let doc: TantivyDocument = searcher.doc(doc_address)?;
         let data = doc
             .get_first(self.content)
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .map(|v| v.to_string())
             .unwrap_or_default();
         let id = doc
             .get_first(self.id)
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .map(|v| v.to_string())
             .unwrap_or_default();
         let source = doc
             .get_first(self.source)
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .map(|v| v.to_string())
             .unwrap_or_default();
         let url = doc
             .get_first(self.url)
-            .and_then(|v| v.as_text())
+            .and_then(|v| v.as_str())
             .map(|v| v.to_string())
             .unwrap_or_default();
         let timestamp = doc
@@ -198,10 +200,10 @@ impl Search {
             .map(|(ts, d)| (ts as f64, d))
             .collect();
         for (_, doc_address) in result {
-            let doc = searcher.doc(doc_address)?;
+            let doc: TantivyDocument = searcher.doc(doc_address)?;
             let source = doc
                 .get_first(self.source)
-                .and_then(|v| v.as_text())
+                .and_then(|v| v.as_str())
                 .map(|v| v.to_string())
                 .unwrap_or_default();
             device_list.insert(source);
@@ -292,27 +294,27 @@ impl Search {
         let ret = ret
             .into_iter()
             .map(|(_, doc_address)| {
-                let doc = searcher.doc(doc_address);
+                let doc: Result<TantivyDocument, _> = searcher.doc(doc_address);
                 doc.map(|d| {
                     debug!("Found doc at {:?}", doc_address);
                     let data = d
                         .get_first(self.content)
-                        .and_then(|v| v.as_text())
+                        .and_then(|v| v.as_str())
                         .map(|v| v.to_string())
                         .unwrap_or_default();
                     let id = d
                         .get_first(self.id)
-                        .and_then(|v| v.as_text())
+                        .and_then(|v| v.as_str())
                         .map(|v| v.to_string())
                         .unwrap_or_default();
                     let source = d
                         .get_first(self.source)
-                        .and_then(|v| v.as_text())
+                        .and_then(|v| v.as_str())
                         .map(|v| v.to_string())
                         .unwrap_or_default();
                     let url = d
                         .get_first(self.url)
-                        .and_then(|v| v.as_text())
+                        .and_then(|v| v.as_str())
                         .map(|v| v.to_string())
                         .unwrap_or_default();
                     let timestamp = d

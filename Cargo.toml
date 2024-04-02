@@ -13,7 +13,7 @@ members = [
 
 [workspace.package]
 authors = ["Chen Xu <windoze@0d0a.com>"]
-version = "0.8.0"
+version = "0.8.2"
 edition = "2021"
 description = "A clipboard sync tool"
 rust-version = "1.75.0"
@@ -21,7 +21,7 @@ rust-version = "1.75.0"
 [workspace.dependencies]
 anyhow = "1"
 log = "0.4"
-env_logger = "0.10"
+env_logger = "0.11"
 clap = { version = "4" }
 clap-verbosity-flag = "2"
 futures = { version = "0.3" }
@@ -32,15 +32,17 @@ bincode = "1"
 toml = "0.8"
 platform-dirs = "0.3"
 futures-util = "0.3"
-poem = { version = "2" }
-tantivy = { version = "0.21" }
+poem = { version = "3" }
+#tantivy = { version = "0.21" }
+# Tantivy 0.21 relies on an older version of zstd, which cannot compile at the moment due to recent incident.
+tantivy = { git = "https://github.com/quickwit-oss/tantivy", commit = "4e79e11007b6c9fc3d3965beefe33e1ffcf641d3" }
 chrono = "0.4"
 png = { version = "0.17" }
 sha2 = { version = "0.10" }
 hex = { version = "0.4" }
 moka = { version = "0.12", features = ["future"] }
-reqwest = { version = "0.11" }
-rumqttc = { version = "0.23" }
+reqwest = { version = "0.12" }
+rumqttc = { version = "0.24" }
 arboard = { version = "3" }
 clipboard-master = { version = "3" }
 gethostname = { version = "0.4" }
@@ -48,7 +50,7 @@ random-string = { version = "1" }
 tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-native-roots"] }
 url = { version = "2" }
 webbrowser = { version = "0.8" }
-image = { version = "0.24" }
+image = { version = "0.25" }
 tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
 
 clip-sync-config = { path = "clip-sync-config" }

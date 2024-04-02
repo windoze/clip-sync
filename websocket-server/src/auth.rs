@@ -30,7 +30,6 @@ pub struct ApiKeyAuthEndpoint<E> {
     api_key: Option<String>,
 }
 
-#[poem::async_trait]
 impl<E: Endpoint> Endpoint for ApiKeyAuthEndpoint<E> {
     type Output = E::Output;
 

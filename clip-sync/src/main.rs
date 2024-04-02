@@ -2,7 +2,7 @@
 
 use client_interface::ClipSyncClient;
 use clip_sync_config::Args;
-use log::info;
+use log::{info, warn};
 
 pub use client_interface::{ClipboardSink, ClipboardSource};
 
@@ -11,36 +11,58 @@ mod clipboard_handler;
 pub static APP_ICON: &[u8] = include_bytes!("../../icons/app-icon.png");
 
 async fn svc_main(args: Args) -> anyhow::Result<()> {
+    if args.roles.is_empty() {
+        anyhow::bail!("No role specified");
+    }
+
     let mut tasks: Vec<tokio::task::JoinHandle<anyhow::Result<()>>> = vec![];
     #[cfg(feature = "server")]
     if args.roles.contains(&"server".to_string()) {
-        tasks.push(tokio::spawn(async {
-            info!("Starting websocket server");
-            websocket_server::server_main(args.server)
-                .await
-                .map_err(|e| anyhow::anyhow!("Server error: {}", e))
+        let server = args.server.clone();
+        tasks.push(tokio::spawn(async move {
+            loop {
+                info!("Starting websocket server");
+                websocket_server::server_main(server.clone())
+                    .await
+                    .map_err(|e| anyhow::anyhow!("Server error: {}", e))
+                    .ok();
+                warn!("Server exited unexpectedly, restarting in 1 second");
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
         }));
     }
     #[cfg(feature = "mqtt")]
     if args.roles.contains(&"mqtt-client".to_string()) {
-        tasks.push(tokio::spawn(async {
-            info!("Starting MQTT client");
-            let (sender_id, source, sink) =
-                mqtt_client::MqttClipSyncClient::connect(args.mqtt_client).await?;
-            clipboard_handler::start(sender_id, source, sink).await
+        let mqtt_client = args.mqtt_client.clone();
+        tasks.push(tokio::spawn(async move {
+            loop {
+                info!("Starting MQTT client");
+                if let Ok((sender_id, source, sink)) =
+                    mqtt_client::MqttClipSyncClient::connect(mqtt_client.clone()).await
+                {
+                    clipboard_handler::start(sender_id, source, sink).await.ok();
+                }
+                warn!("MQTT client exited unexpectedly, restarting in 1 second");
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
         }));
     }
     #[cfg(feature = "websocket")]
     if args.roles.contains(&"websocket-client".to_string()) {
-        tasks.push(tokio::spawn(async {
-            info!("Starting websocket client");
-            let (sender_id, source, sink) =
-                websocket_client::WebsocketClipSyncClient::connect(args.websocket_client).await?;
-            clipboard_handler::start(sender_id, source, sink).await
+        let websocket_client = args.websocket_client.clone();
+        tasks.push(tokio::spawn(async move {
+            loop {
+                info!("Starting websocket client");
+                if let Ok((sender_id, source, sink)) =
+                    websocket_client::WebsocketClipSyncClient::connect(websocket_client.clone())
+                        .await
+                {
+                    clipboard_handler::start(sender_id, source, sink).await.ok();
+                    warn!("Websocket client exited unexpectedly, restarting in 1 second");
+                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                }
+            }
         }));
-    }
-    if args.roles.is_empty() {
-        anyhow::bail!("No role specified");
     }
     for r in futures::future::join_all(tasks.into_iter())
         .await
