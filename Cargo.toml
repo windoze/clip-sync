@@ -13,7 +13,7 @@ members = [
 
 [workspace.package]
 authors = ["Chen Xu <windoze@0d0a.com>"]
-version = "0.8.1"
+version = "0.8.2"
 edition = "2021"
 description = "A clipboard sync tool"
 rust-version = "1.75.0"
