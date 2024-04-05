@@ -17,6 +17,7 @@ clap-verbosity-flag = { workspace = true }
 platform-dirs = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 toml = { workspace = true }
+chrono = { workspace = true }
 url = { workspace = true, optional = true }
 
 mqtt-client = { workspace = true, optional = true }
