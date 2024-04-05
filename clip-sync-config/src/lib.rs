@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
@@ -17,6 +18,9 @@ pub struct Args {
     #[cfg(feature = "websocket")]
     #[serde(default)]
     pub websocket_client: websocket_client::ClientConfig,
+
+    pub log_file: Option<String>,
+    pub log_level: Option<String>,
 }
 
 impl Args {
@@ -75,9 +79,51 @@ pub fn parse() -> anyhow::Result<Args> {
     }
 
     let cli = Config::parse();
-    env_logger::Builder::new()
-        .filter_level(cli.verbose.log_level_filter())
-        .filter_module("tantivy", log::LevelFilter::Warn) // Tantivy is too talky at the INFO level
-        .init();
-    parse_config(cli.config_path)
+    let args = parse_config(cli.config_path)?;
+
+    let log_level = if let Some(log_level) = args.log_level.as_ref() {
+        log_level.parse()?
+    } else {
+        cli.verbose.log_level_filter()
+    };
+
+    let debug = log_level == log::LevelFilter::Debug
+        || cli.verbose.log_level_filter() == log::LevelFilter::Trace;
+
+    if let Some(log_file) = args.log_file.as_ref() {
+        let target = Box::new(std::fs::File::create(log_file).expect("Can't create file"));
+
+        env_logger::Builder::new()
+            .format(move |buf, record| {
+                if debug {
+                    writeln!(
+                        buf,
+                        "{}:{} {} [{}] - {}",
+                        record.file().unwrap_or("unknown"),
+                        record.line().unwrap_or(0),
+                        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3f"),
+                        record.level(),
+                        record.args()
+                    )
+                } else {
+                    writeln!(
+                        buf,
+                        "{} [{}] - {}",
+                        chrono::Utc::now().format("%Y-%m-%dT%H:%M:%S%.3f"),
+                        record.level(),
+                        record.args()
+                    )
+                }
+            })
+            .target(env_logger::Target::Pipe(target))
+            .filter_level(log_level)
+            .filter_module("tantivy", log::LevelFilter::Warn) // Tantivy is too talky at the INFO level
+            .init();
+    } else {
+        env_logger::Builder::new()
+            .filter_level(log_level)
+            .filter_module("tantivy", log::LevelFilter::Warn) // Tantivy is too talky at the INFO level
+            .init();
+    }
+    Ok(args)
 }

@@ -580,6 +580,7 @@ name = "clip-sync-config"
 version = "0.8.2"
 dependencies = [
  "anyhow",
+ "chrono",
  "clap 4.5.4",
  "clap-verbosity-flag",
  "env_logger",
