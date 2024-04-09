@@ -1,27 +1,22 @@
 [package]
-name = "websocket-server"
+name = "storage"
 authors.workspace = true
 version.workspace = true
 edition.workspace = true
+description.workspace = true
 rust-version.workspace = true
-description = "Websocket server component"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 anyhow = { workspace = true }
 log = { workspace = true }
-clap = { workspace = true, features = ["derive"] }
-tokio = { workspace = true, features = ["sync", "rt", "rt-multi-thread", "fs"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-poem = { workspace = true, features = ["websocket", "rustls", "static-files", "multipart"] }
 tantivy = { workspace = true }
 chrono = { workspace = true }
 futures-util = { workspace = true }
-moka = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
 
 client-interface = { workspace = true, features = ["websocket"] }
-storage = { workspace = true }

@@ -201,7 +201,7 @@ async fn main() -> anyhow::Result<()> {
             if let Some(url) = args.get_server_url() {
                 let url = format!("{}api/query", url);
                 let client = reqwest::Client::new();
-                let param = client_interface::Params {
+                let param = client_interface::QueryParams {
                     q: text,
                     from: if device.is_empty() {
                         None

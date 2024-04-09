@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use chrono::Utc;
-use client_interface::{ClipboardMessage, Params, ServerClipboardContent};
+use client_interface::{ClipboardMessage, QueryParams, QueryResult, ServerClipboardContent};
 use futures_util::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use poem::{
@@ -17,6 +17,7 @@ use poem::{
     },
     EndpointExt, IntoResponse, Request, Route, Server,
 };
+use serde::Deserialize;
 use sha2::Digest;
 use tokio::sync::{broadcast::channel, RwLock};
 
@@ -24,10 +25,20 @@ use crate::global_state::GlobalState;
 
 mod auth;
 mod global_state;
-mod models;
-mod search;
 
-pub use models::*;
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct ServerConfig {
+    pub endpoint: String,
+    pub secret: Option<String>,
+    #[serde(default)]
+    pub use_tls: bool,
+    pub cert_path: Option<PathBuf>,
+    pub key_path: Option<PathBuf>,
+    pub web_root: Option<PathBuf>,
+    pub index_path: Option<PathBuf>,
+    pub image_path: Option<PathBuf>,
+}
 
 #[handler]
 async fn ws(
@@ -140,13 +151,12 @@ async fn query(
     req: &Request,
     data: Data<&Arc<RwLock<GlobalState>>>,
 ) -> poem::Result<Json<QueryResult>> {
-    let params = req.params::<Params>()?;
+    let params = req.params::<QueryParams>()?;
     debug!("Query: {:?}", params);
     let global_state = data.0.clone();
-    let param = params.into();
 
     // Json(serde_json::to_string(&device_list).unwrap())
-    let ret = global_state.read().await.query(param).await;
+    let ret = global_state.read().await.query(params).await;
     match ret {
         Ok(entries) => Ok(Json(entries)),
         Err(e) => {

@@ -102,7 +102,7 @@ mod ws {
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Deserialize)]
-    pub struct Params {
+    pub struct QueryParams {
         #[serde(default)]
         pub q: Option<String>,
         #[serde(default)]
@@ -119,7 +119,7 @@ mod ws {
         pub sort: Option<String>,
     }
 
-    impl Params {
+    impl QueryParams {
         pub fn to_query(&self) -> Vec<(&'static str, String)> {
             let mut query = vec![];
             if let Some(q) = &self.q {
@@ -145,6 +145,13 @@ mod ws {
             }
             query
         }
+    }
+
+    #[derive(Debug, Clone, Serialize)]
+    pub struct QueryResult {
+        pub total: usize,
+        pub skip: usize,
+        pub data: Vec<ClipboardMessage>,
     }
 
     fn default_timestamp() -> i64 {

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, path::PathBuf};
 
-use client_interface::ServerClipboardContent;
+use client_interface::{QueryParams, ServerClipboardContent};
 use log::{debug, info, warn};
 use moka::future::Cache;
 use sha2::Digest;
@@ -10,13 +10,13 @@ use tokio::{
     sync::broadcast::Sender,
 };
 
-use super::{search::Search, ClipboardMessage, QueryParam, QueryResult, ServerConfig};
+use super::{ClipboardMessage, QueryResult, ServerConfig};
 
 pub struct GlobalState {
     sender: Sender<ClipboardMessage>,
     device_list: HashSet<String>,
     online_device_list: HashSet<String>,
-    search: Search,
+    search: storage::Storage,
     _rt: tokio::runtime::Runtime,
     thread_pool: Handle,
     image_path: PathBuf,
@@ -33,7 +33,7 @@ impl GlobalState {
 
         let handle = rt.handle().clone();
 
-        let search = Search::new(args.index_path.clone());
+        let search = storage::Storage::new(args.index_path.clone());
         let device_list = search.get_device_list().unwrap();
 
         Self {
@@ -114,7 +114,7 @@ impl GlobalState {
         Ok(())
     }
 
-    pub async fn query(&self, param: QueryParam) -> anyhow::Result<QueryResult> {
+    pub async fn query(&self, param: QueryParams) -> anyhow::Result<QueryResult> {
         let search = self.search.clone();
         let result = self
             .thread_pool

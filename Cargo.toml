@@ -7,6 +7,7 @@ members = [
     "clip-sync-config",
     "clip-sync-server",
     "mqtt-client",
+    "storage",
     "websocket-client",
     "websocket-server",
 ]
@@ -56,5 +57,6 @@ tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
 clip-sync-config = { path = "clip-sync-config" }
 client-interface = { path = "client-interface" }
 mqtt-client = { path = "mqtt-client" }
+storage = { path = "storage" }
 websocket-client = { path = "websocket-client" }
 websocket-server = { path = "websocket-server" }
