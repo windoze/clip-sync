@@ -3665,8 +3665,9 @@ dependencies = [
 
 [[package]]
 name = "tray-item"
-version = "0.9.0"
-source = "git+https://github.com/windoze/tray-item-rs.git#e2506979c397e1106653f936aee2edabb2fb39f5"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "59d4bd406170690dc30eabb3badc67a085beaf9b2c3b1923afcc9c26a2191353"
 dependencies = [
  "cocoa",
  "core-graphics",

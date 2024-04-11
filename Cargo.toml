@@ -52,7 +52,7 @@ tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-native-roots"]
 url = { version = "2" }
 webbrowser = { version = "0.8" }
 image = { version = "0.25" }
-tray-item = { git = "https://github.com/windoze/tray-item-rs.git" }
+tray-item = { version = "0.10" }
 
 clip-sync-config = { path = "clip-sync-config" }
 client-interface = { path = "client-interface" }
