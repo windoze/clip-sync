@@ -36,7 +36,7 @@ pub struct ServerConfig {
     pub cert_path: Option<PathBuf>,
     pub key_path: Option<PathBuf>,
     pub web_root: Option<PathBuf>,
-    pub index_path: Option<PathBuf>,
+    pub index_path: Option<String>,
     pub image_path: Option<PathBuf>,
 }
 

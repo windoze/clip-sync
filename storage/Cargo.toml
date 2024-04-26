@@ -13,8 +13,11 @@ anyhow = { workspace = true }
 log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-tantivy = { workspace = true }
 chrono = { workspace = true }
 futures-util = { workspace = true }
+
+tantivy = { version = "0.22" }
+
+sqlx = { version = "0.7", features = [ "runtime-tokio", "tls-rustls", "sqlite" ] }
 
 client-interface = { workspace = true, features = ["websocket"] }

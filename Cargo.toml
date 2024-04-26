@@ -34,9 +34,6 @@ toml = "0.8"
 platform-dirs = "0.3"
 futures-util = "0.3"
 poem = { version = "3" }
-#tantivy = { version = "0.21" }
-# Tantivy 0.21 relies on an older version of zstd, which cannot compile at the moment due to recent incident.
-tantivy = { git = "https://github.com/quickwit-oss/tantivy", commit = "4e79e11007b6c9fc3d3965beefe33e1ffcf641d3" }
 chrono = "0.4"
 png = { version = "0.17" }
 sha2 = { version = "0.10" }
@@ -50,7 +47,7 @@ gethostname = { version = "0.4" }
 random-string = { version = "1" }
 tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-native-roots"] }
 url = { version = "2" }
-webbrowser = { version = "0.8" }
+webbrowser = { version = "1" }
 image = { version = "0.25" }
 tray-item = { version = "0.10" }
 

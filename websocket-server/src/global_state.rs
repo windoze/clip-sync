@@ -33,14 +33,14 @@ impl GlobalState {
 
         let handle = rt.handle().clone();
 
-        let search = storage::Storage::new(args.index_path.clone());
-        let device_list = search.get_device_list().unwrap();
+        let storage = storage::Storage::new(args.index_path.as_deref());
+        let device_list = storage.get_device_list().unwrap();
 
         Self {
             sender,
             device_list,
             online_device_list: HashSet::new(),
-            search,
+            search: storage,
             _rt: rt,
             thread_pool: handle,
             image_path: args.image_path.clone().unwrap(),
