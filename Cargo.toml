@@ -45,7 +45,7 @@ arboard = { version = "3" }
 clipboard-master = { version = "3" }
 gethostname = { version = "0.4" }
 random-string = { version = "1" }
-tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-native-roots"] }
+tokio-tungstenite = { version = "0.23", features = ["rustls-tls-native-roots"] }
 url = { version = "2" }
 webbrowser = { version = "1" }
 image = { version = "0.25" }
