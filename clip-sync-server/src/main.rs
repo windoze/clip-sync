@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
     #[derive(Debug, Clone, Parser)]
     struct Config {
         #[arg(long = "config")]
-        config_path: Option<std::path::PathBuf>,
+        config_path: Option<PathBuf>,
         #[cfg(not(feature = "server-only"))]
         #[arg(long, default_value = "false")]
         no_tray: bool,
